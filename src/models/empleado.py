@@ -1,43 +1,38 @@
 class Empleado:
-    def __init__(self, id_empleado, nombre, dni, telefono, direccion):
+    def __init__(self, 
+                 id_empleado: int, 
+                 nombre: str, 
+                 dni: int, 
+                 cargo: str):
         self._id_empleado = id_empleado
         self._nombre = nombre
         self._dni = dni
-        self._telefono = telefono
-        self._direccion = direccion
+        self._cargo = cargo
     
     @property
-    def id_empleado(self):
+    def id_empleado(self) -> int:
         return self._id_empleado
-
+    
     @property
-    def nombre(self):
+    def nombre(self) -> str:
         return self._nombre
     
     @nombre.setter
-    def nombre(self, nombre):
+    def nombre(self, nombre: str):
         self._nombre = nombre
     
     @property
-    def dni(self):
+    def dni(self) -> int:
         return self._dni
     
     @dni.setter
-    def dni(self, dni):
+    def dni(self, dni: int):
         self._dni = dni
     
     @property
-    def telefono(self):
-        return self._telefono
+    def cargo(self) -> str:
+        return self._cargo
     
-    @telefono.setter
-    def telefono(self, telefono):
-        self._telefono = telefono
-    
-    @property
-    def direccion(self):
-        return self._direccion
-    
-    @direccion.setter
-    def direccion(self, direccion):
-        self._direccion = direccion
+    @cargo.setter
+    def cargo(self, cargo: str):
+        self._cargo = cargo
