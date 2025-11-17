@@ -4,6 +4,7 @@ from sqlalchemy.exc import OperationalError
 import time
 
 from .database import Base, engine
+from app import models
 from .routers import clientes, empleados, vehiculos, categorias_vehiculo, estados_vehiculo
 
 app = FastAPI(title="DAO - Sistema de Alquiler de Vehículos")

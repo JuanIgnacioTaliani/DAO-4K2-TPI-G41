@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from ..database import get_db
-from .. import models, schemas
+from ..models import estados_vehiculo as estadoModel
+from ..schemas import estados_vehiculo as estadoSchema
 
 router = APIRouter(
     prefix="/estados-vehiculo",
@@ -11,43 +12,43 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=schemas.EstadoVehiculoOut, status_code=status.HTTP_201_CREATED)
-def crear_estado(estado_in: schemas.EstadoVehiculoCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=estadoSchema.EstadoVehiculoOut, status_code=status.HTTP_201_CREATED)
+def crear_estado(estado_in: estadoSchema.EstadoVehiculoCreate, db: Session = Depends(get_db)):
     existente = (
-        db.query(models.EstadoVehiculo)
-        .filter(models.EstadoVehiculo.nombre == estado_in.nombre)
+        db.query(estadoModel.EstadoVehiculo)
+        .filter(estadoModel.EstadoVehiculo.nombre == estado_in.nombre)
         .first()
     )
     if existente:
         raise HTTPException(status_code=400, detail="Ya existe un estado con ese nombre")
 
-    estado = models.EstadoVehiculo(**estado_in.model_dump())
+    estado = estadoModel.EstadoVehiculo(**estado_in.model_dump())
     db.add(estado)
     db.commit()
     db.refresh(estado)
     return estado
 
 
-@router.get("/", response_model=List[schemas.EstadoVehiculoOut])
+@router.get("/", response_model=List[estadoSchema.EstadoVehiculoOut])
 def listar_estados(db: Session = Depends(get_db)):
-    return db.query(models.EstadoVehiculo).all()
+    return db.query(estadoModel.EstadoVehiculo).all()
 
 
-@router.get("/{estado_id}", response_model=schemas.EstadoVehiculoOut)
+@router.get("/{estado_id}", response_model=estadoSchema.EstadoVehiculoOut)
 def obtener_estado(estado_id: int, db: Session = Depends(get_db)):
-    estado = db.query(models.EstadoVehiculo).get(estado_id)
+    estado = db.query(estadoModel.EstadoVehiculo).get(estado_id)
     if not estado:
         raise HTTPException(status_code=404, detail="Estado no encontrado")
     return estado
 
 
-@router.put("/{estado_id}", response_model=schemas.EstadoVehiculoOut)
+@router.put("/{estado_id}", response_model=estadoSchema.EstadoVehiculoOut)
 def actualizar_estado(
     estado_id: int,
-    estado_in: schemas.EstadoVehiculoUpdate,
+    estado_in: estadoSchema.EstadoVehiculoUpdate,
     db: Session = Depends(get_db),
 ):
-    estado = db.query(models.EstadoVehiculo).get(estado_id)
+    estado = db.query(estadoModel.EstadoVehiculo).get(estado_id)
     if not estado:
         raise HTTPException(status_code=404, detail="Estado no encontrado")
 
@@ -62,7 +63,7 @@ def actualizar_estado(
 
 @router.delete("/{estado_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_estado(estado_id: int, db: Session = Depends(get_db)):
-    estado = db.query(models.EstadoVehiculo).get(estado_id)
+    estado = db.query(estadoModel.EstadoVehiculo).get(estado_id)
     if not estado:
         raise HTTPException(status_code=404, detail="Estado no encontrado")
 
