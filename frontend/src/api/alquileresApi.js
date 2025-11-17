@@ -1,0 +1,75 @@
+import axios from "axios";
+import {
+  mockAlquileres,
+  mockClientes,
+  mockVehiculos,
+  mockEmpleados,
+  delay,
+  generateId,
+} from "./mockData";
+
+// Configuración: cambiar a false para usar API real
+const USE_MOCK = true;
+
+const api = axios.create({
+  baseURL: "http://localhost:8000",
+});
+
+// ========== MOCK IMPLEMENTATION ==========
+let alquileresData = [...mockAlquileres];
+
+const mockApi = {
+  getAlquileres: async () => {
+    await delay();
+    return { data: alquileresData };
+  },
+
+  createAlquiler: async (alquiler) => {
+    await delay();
+    const nuevoAlquiler = {
+      id_alquiler: generateId(),
+      ...alquiler,
+    };
+    alquileresData.push(nuevoAlquiler);
+    return { data: nuevoAlquiler };
+  },
+
+  updateAlquiler: async (id, alquiler) => {
+    await delay();
+    const index = alquileresData.findIndex((a) => a.id_alquiler === id);
+    if (index === -1) {
+      throw new Error("Alquiler no encontrado");
+    }
+    alquileresData[index] = { ...alquileresData[index], ...alquiler };
+    return { data: alquileresData[index] };
+  },
+
+  deleteAlquiler: async (id) => {
+    await delay();
+    const index = alquileresData.findIndex((a) => a.id_alquiler === id);
+    if (index === -1) {
+      throw new Error("Alquiler no encontrado");
+    }
+    alquileresData.splice(index, 1);
+    return { data: { message: "Alquiler eliminado" } };
+  },
+};
+
+// ========== API EXPORTS ==========
+// GET /alquileres/
+export const getAlquileres = () =>
+  USE_MOCK ? mockApi.getAlquileres() : api.get("/alquileres/");
+
+// POST /alquileres/
+export const createAlquiler = (alquiler) =>
+  USE_MOCK ? mockApi.createAlquiler(alquiler) : api.post("/alquileres/", alquiler);
+
+// PUT /alquileres/{id}
+export const updateAlquiler = (id, alquiler) =>
+  USE_MOCK
+    ? mockApi.updateAlquiler(id, alquiler)
+    : api.put(`/alquileres/${id}`, alquiler);
+
+// DELETE /alquileres/{id}
+export const deleteAlquiler = (id) =>
+  USE_MOCK ? mockApi.deleteAlquiler(id) : api.delete(`/alquileres/${id}`);

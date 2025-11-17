@@ -39,6 +39,14 @@ function Menu() {
             </li>
         </ul>
       </li>
+      <li className="nav-item has-treeview">
+        <Link to="/alquiler" className="nav-link">
+          <i className="nav-icon fas fa-handshake" />
+          <p>
+            Alquiler
+          </p>
+        </Link>
+      </li>
     </>
   );
 }
