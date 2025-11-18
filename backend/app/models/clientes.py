@@ -25,4 +25,3 @@ class Cliente(Base):
     estado = Column(Boolean, default=True)
 
     alquileres = relationship("Alquiler", back_populates="cliente")
-    reservas = relationship("Reserva", back_populates="cliente")

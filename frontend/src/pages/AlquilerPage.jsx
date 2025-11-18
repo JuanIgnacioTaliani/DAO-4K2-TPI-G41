@@ -5,13 +5,16 @@ import modalDialogService from "../api/modalDialog.service";
 
 import {
   getAlquileres,
+  getAlquiler,
   createAlquiler,
   updateAlquiler,
   deleteAlquiler,
   verificarDisponibilidad,
+  realizarCheckout,
+  cancelarAlquiler,
 } from "../api/alquileresApi";
 import { getClientes } from "../api/clientesApi";
-import { getVehiculos } from "../api/vehiculosApi";
+import { getVehiculosConDisponibilidad } from "../api/vehiculosApi";
 import { getEmpleados } from "../api/empleadosApi";
 import { getCategoriasVehiculo } from "../api/categoriasVehiculoApi";
 import { getMultasDaniosByAlquiler } from "../api/multasDaniosApi";
@@ -45,14 +48,68 @@ export default function AlquilerPage() {
   const [diasAlquiler, setDiasAlquiler] = useState(0);
   const [showMultasModal, setShowMultasModal] = useState(false);
   const [multasModalData, setMultasModalData] = useState([]);
+  
+  // Estados para modal de checkout
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    alquilerId: null,
+    kmInicial: null,
+    kmFinal: "",
+    idEmpleadoFinalizador: "",
+    observacionesFinalizacion: ""
+  });
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+
+  // Estados para modal de cancelación
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [cancelarData, setCancelarData] = useState({
+    alquilerId: null,
+    motivoCancelacion: "",
+    idEmpleadoCancelador: ""
+  });
+  const [loadingCancelar, setLoadingCancelar] = useState(false);
+
+  // Filtros de listado
+  const [filtroPeriodoEstado, setFiltroPeriodoEstado] = useState(""); // pendiente|en_curso|checkout
+  const [filtroCliente, setFiltroCliente] = useState("");
+  const [filtroVehiculo, setFiltroVehiculo] = useState("");
+  const [filtroEmpleado, setFiltroEmpleado] = useState("");
+  const [filtroFechaInicioDesde, setFiltroFechaInicioDesde] = useState("");
+  const [filtroFechaInicioHasta, setFiltroFechaInicioHasta] = useState("");
+  const [filtroFechaFinDesde, setFiltroFechaFinDesde] = useState("");
+  const [filtroFechaFinHasta, setFiltroFechaFinHasta] = useState("");
 
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Validar rangos de fechas
+      if (filtroFechaInicioDesde && filtroFechaInicioHasta && filtroFechaInicioDesde > filtroFechaInicioHasta) {
+        setErrorMsg("Rango de fecha inicio inválido: 'desde' debe ser menor o igual a 'hasta'");
+        setLoading(false);
+        return;
+      }
+      if (filtroFechaFinDesde && filtroFechaFinHasta && filtroFechaFinDesde > filtroFechaFinHasta) {
+        setErrorMsg("Rango de fecha fin inválido: 'desde' debe ser menor o igual a 'hasta'");
+        setLoading(false);
+        return;
+      }
+
+      // Construir params para filtros de backend
+      const params = {};
+      if (filtroPeriodoEstado) params.periodo_estado = filtroPeriodoEstado;
+      if (filtroCliente) params.id_cliente = parseInt(filtroCliente, 10);
+      if (filtroVehiculo) params.id_vehiculo = parseInt(filtroVehiculo, 10);
+      if (filtroEmpleado) params.id_empleado = parseInt(filtroEmpleado, 10);
+      if (filtroFechaInicioDesde) params.fecha_inicio_desde = filtroFechaInicioDesde;
+      if (filtroFechaInicioHasta) params.fecha_inicio_hasta = filtroFechaInicioHasta;
+      if (filtroFechaFinDesde) params.fecha_fin_desde = filtroFechaFinDesde;
+      if (filtroFechaFinHasta) params.fecha_fin_hasta = filtroFechaFinHasta;
+
       const [aRes, cRes, vRes, eRes, catRes] = await Promise.all([
-        getAlquileres(),
+        getAlquileres(params),
         getClientes(),
-        getVehiculos(),
+        getVehiculosConDisponibilidad(),
         getEmpleados(),
         getCategoriasVehiculo(),
       ]);
@@ -244,7 +301,6 @@ export default function AlquilerPage() {
       id_cliente: form.id_cliente ? parseInt(form.id_cliente, 10) : null,
       id_vehiculo: form.id_vehiculo ? parseInt(form.id_vehiculo, 10) : null,
       id_empleado: form.id_empleado ? parseInt(form.id_empleado, 10) : null,
-      id_reserva: null, // Siempre null, se maneja automáticamente en backend
       fecha_inicio: form.fecha_inicio || null,
       fecha_fin: form.fecha_fin || null,
       costo_base: costoBaseCalculado,
@@ -358,6 +414,186 @@ export default function AlquilerPage() {
     navigate(`/multas-danios?id_alquiler=${idAlquiler}`);
   };
 
+  // Funciones para Checkout
+  const handleAbrirCheckout = async (alquiler) => {
+    // Abrir modal primero con datos mínimos para buena UX
+    setShowCheckoutModal(true);
+
+    // Intentar obtener el alquiler actualizado para tener km_inicial más fresco
+    try {
+      const { data } = await getAlquiler(alquiler.id_alquiler);
+      setCheckoutData({
+        alquilerId: data.id_alquiler,
+        kmInicial: data.km_inicial ?? alquiler.km_inicial ?? 0,
+        kmFinal: "",
+        idEmpleadoFinalizador: "",
+        observacionesFinalizacion: "",
+        vehiculoInfo: `${data.vehiculo_marca ?? ''} ${data.vehiculo_modelo ?? ''} (${data.vehiculo_patente ?? ''})`.trim(),
+        fechaInicio: data.fecha_inicio,
+        fechaFin: data.fecha_fin,
+      });
+    } catch (e) {
+      // Si falla el refetch, usar los datos disponibles
+      setCheckoutData({
+        alquilerId: alquiler.id_alquiler,
+        kmInicial: alquiler.km_inicial ?? 0,
+        kmFinal: "",
+        idEmpleadoFinalizador: "",
+        observacionesFinalizacion: "",
+        vehiculoInfo: "",
+        fechaInicio: alquiler.fecha_inicio,
+        fechaFin: alquiler.fecha_fin,
+      });
+    }
+  };
+
+  const handleCheckout = async () => {
+    try {
+      // Validaciones
+      if (!checkoutData.kmFinal || checkoutData.kmFinal === "") {
+        modalDialogService.Alert("Debe ingresar el kilometraje final");
+        return;
+      }
+
+      if (!checkoutData.idEmpleadoFinalizador || checkoutData.idEmpleadoFinalizador === "") {
+        modalDialogService.Alert("Debe seleccionar un empleado finalizador");
+        return;
+      }
+
+      const kmFinal = parseInt(checkoutData.kmFinal, 10);
+      const kmInicial = parseInt(checkoutData.kmInicial, 10);
+
+      if (kmFinal <= kmInicial) {
+        modalDialogService.Alert(`El kilometraje final (${kmFinal}) debe ser mayor al inicial (${kmInicial})`);
+        return;
+      }
+
+      const kmRecorridos = kmFinal - kmInicial;
+      if (kmRecorridos > 10000) {
+        const confirmar = await modalDialogService.Confirm(
+          `¿Está seguro? El vehículo recorrió ${kmRecorridos} km, lo cual es inusualmente alto.`
+        );
+        if (!confirmar) return;
+      }
+
+      setLoadingCheckout(true);
+
+      const payload = {
+        km_final: kmFinal,
+        id_empleado_finalizador: parseInt(checkoutData.idEmpleadoFinalizador, 10),
+        observaciones_finalizacion: checkoutData.observacionesFinalizacion || null
+      };
+
+      const response = await realizarCheckout(checkoutData.alquilerId, payload);
+
+      // Mostrar resultado
+      let mensaje = response.data.message;
+      if (response.data.requiere_mantenimiento) {
+        mensaje += `\n\n⚠️ El vehículo requiere mantenimiento (${kmRecorridos} km recorridos).`;
+        if (response.data.mantenimiento_creado) {
+          mensaje += `\nSe creó automáticamente el registro de mantenimiento #${response.data.mantenimiento_creado}.`;
+        }
+      }
+
+      // Cerrar modal y refrescar antes de mostrar el mensaje
+      setShowCheckoutModal(false);
+      setCheckoutData({
+        alquilerId: null,
+        kmInicial: null,
+        kmFinal: "",
+        idEmpleadoFinalizador: "",
+        observacionesFinalizacion: ""
+      });
+      await loadData();
+
+      await modalDialogService.Alert(mensaje);
+      
+    } catch (err) {
+      console.error(err);
+      const errorMsg = err.response?.data?.detail || "Error al realizar el checkout";
+      modalDialogService.Alert(errorMsg);
+    } finally {
+      setLoadingCheckout(false);
+    }
+  };
+
+  // Función para abrir el modal de cancelación
+  const handleAbrirCancelar = (alquiler) => {
+    setCancelarData({
+      alquilerId: alquiler.id_alquiler,
+      motivoCancelacion: "",
+      idEmpleadoCancelador: ""
+    });
+    setShowCancelarModal(true);
+  };
+
+  // Función para cancelar un alquiler
+  const handleCancelar = async () => {
+    // Validaciones
+    if (!cancelarData.motivoCancelacion.trim()) {
+      modalDialogService.error("Por favor ingrese el motivo de cancelación");
+      return;
+    }
+
+    if (!cancelarData.idEmpleadoCancelador) {
+      modalDialogService.error("Por favor seleccione el empleado que cancela");
+      return;
+    }
+
+    try {
+      setLoadingCancelar(true);
+
+      const payload = {
+        motivo_cancelacion: cancelarData.motivoCancelacion,
+        id_empleado_cancelador: parseInt(cancelarData.idEmpleadoCancelador)
+      };
+
+      const response = await cancelarAlquiler(cancelarData.alquilerId, payload);
+
+      if (response.data?.success) {
+        // Cerrar modal y refrescar primero para asegurar que se vea el cambio
+        setShowCancelarModal(false);
+        setCancelarData({
+          alquilerId: null,
+          motivoCancelacion: "",
+          idEmpleadoCancelador: ""
+        });
+        await loadData();
+
+        // Mostrar confirmación luego de refrescar
+        modalDialogService.success(
+          `Alquiler cancelado exitosamente. Estado anterior: ${response.data.estado_anterior}`
+        );
+      } else {
+        modalDialogService.error("No se pudo cancelar el alquiler");
+      }
+    } catch (error) {
+      console.error("Error al cancelar alquiler:", error);
+      const errorMsg = error.response?.data?.detail || "Error al cancelar el alquiler";
+      modalDialogService.error(errorMsg);
+    } finally {
+      setLoadingCancelar(false);
+    }
+  };
+
+  // Función para obtener el badge de estado con los nombres descriptivos
+  const getBadgeEstado = (estado) => {
+    const estados = {
+      PENDIENTE: { texto: "Reserva", clase: "badge-warning" },
+      EN_CURSO: { texto: "Alquiler Activo", clase: "badge-primary" },
+      CHECKOUT: { texto: "Período Finalizado", clase: "badge-info" },
+      FINALIZADO: { texto: "Alquiler Finalizado", clase: "badge-success" },
+      CANCELADO: { texto: "Cancelado", clase: "badge-danger" }
+    };
+    
+    const info = estados[estado] || { texto: estado, clase: "badge-secondary" };
+    return (
+      <span className={`badge ${info.clase}`}>
+        {info.texto}
+      </span>
+    );
+  };
+
   // Función para calcular estado dinámicamente según fechas
   const calcularEstado = (fechaInicio, fechaFin) => {
     const hoy = new Date();
@@ -367,11 +603,11 @@ export default function AlquilerPage() {
     const fin = new Date(fechaFin);
     
     if (hoy < inicio) {
-      return { estado: "PENDIENTE", clase: "badge-info" };
+      return { estado: "PENDIENTE", clase: "badge-warning" };
     } else if (hoy >= inicio && hoy <= fin) {
       return { estado: "EN_CURSO", clase: "badge-primary" };
     } else {
-      return { estado: "FINALIZADO", clase: "badge-success" };
+      return { estado: "CHECKOUT", clase: "badge-info" }; // Cambiado de FINALIZADO a CHECKOUT
     }
   };
 
@@ -522,11 +758,24 @@ export default function AlquilerPage() {
                         </optgroup>
                       )}
                       
-                      {/* Vehículos NO DISPONIBLES después (deshabilitados) */}
-                      {vehiculosDisponibles.filter(v => !v.disponible).length > 0 && (
-                        <optgroup label="❌ No Disponibles">
+                      {/* Vehículos EN MANTENIMIENTO */}
+                      {vehiculosDisponibles.filter(v => v.estado_disponibilidad === "En Mantenimiento").length > 0 && (
+                        <optgroup label="🔧 En Mantenimiento">
                           {vehiculosDisponibles
-                            .filter(v => !v.disponible)
+                            .filter(v => v.estado_disponibilidad === "En Mantenimiento")
+                            .map((v) => (
+                              <option key={v.id_vehiculo} value={v.id_vehiculo} disabled>
+                                {v.patente} - {v.marca} {v.modelo} (En Mantenimiento)
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      
+                      {/* Vehículos OCUPADOS (deshabilitados) */}
+                      {vehiculosDisponibles.filter(v => !v.disponible && v.estado_disponibilidad !== "En Mantenimiento").length > 0 && (
+                        <optgroup label="❌ Ocupados">
+                          {vehiculosDisponibles
+                            .filter(v => !v.disponible && v.estado_disponibilidad !== "En Mantenimiento")
                             .map((v) => (
                               <option key={v.id_vehiculo} value={v.id_vehiculo} disabled>
                                 {v.patente} - {v.marca} {v.modelo} (Ocupado)
@@ -641,6 +890,111 @@ export default function AlquilerPage() {
                 </span>
               )}
             </div>
+            {/* Filtros */}
+            <div className="card-body border-bottom">
+              <div className="row">
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small" htmlFor="filtroPeriodoEstado">Estado por fechas</label>
+                    <select
+                      id="filtroPeriodoEstado"
+                      className="form-control form-control-sm"
+                      value={filtroPeriodoEstado}
+                      onChange={(e) => setFiltroPeriodoEstado(e.target.value)}
+                    >
+                      <option value="">Cualquiera</option>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="en_curso">En curso</option>
+                      <option value="checkout">Período finalizado</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small" htmlFor="filtroCliente">Cliente</label>
+                    <select
+                      id="filtroCliente"
+                      className="form-control form-control-sm"
+                      value={filtroCliente}
+                      onChange={(e) => setFiltroCliente(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {clientes.map(c => (
+                        <option key={c.id_cliente} value={c.id_cliente}>
+                          {c.nombre} {c.apellido}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small" htmlFor="filtroVehiculo">Vehículo</label>
+                    <select id="filtroVehiculo" className="form-control form-control-sm" value={filtroVehiculo} onChange={(e)=>setFiltroVehiculo(e.target.value)}>
+                      <option value="">Todos</option>
+                      {vehiculos.map(v => (
+                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
+                          {v.patente} - {v.marca} {v.modelo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small" htmlFor="filtroEmpleado">Empleado</label>
+                    <select id="filtroEmpleado" className="form-control form-control-sm" value={filtroEmpleado} onChange={(e)=>setFiltroEmpleado(e.target.value)}>
+                      <option value="">Todos</option>
+                      {empleados.map(e => (
+                        <option key={e.id_empleado} value={e.id_empleado}>
+                          {e.nombre} {e.apellido}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="row mt-2">
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small">Rango fecha inicio</label>
+                    <div className="d-flex gap-1">
+                      <input type="date" className="form-control form-control-sm mr-1" value={filtroFechaInicioDesde} onChange={(e)=>setFiltroFechaInicioDesde(e.target.value)} placeholder="Desde" />
+                      <input type="date" className="form-control form-control-sm" value={filtroFechaInicioHasta} onChange={(e)=>setFiltroFechaInicioHasta(e.target.value)} placeholder="Hasta" />
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="form-group mb-0">
+                    <label className="small">Rango fecha fin</label>
+                    <div className="d-flex gap-1">
+                      <input type="date" className="form-control form-control-sm mr-1" value={filtroFechaFinDesde} onChange={(e)=>setFiltroFechaFinDesde(e.target.value)} placeholder="Desde" />
+                      <input type="date" className="form-control form-control-sm" value={filtroFechaFinHasta} onChange={(e)=>setFiltroFechaFinHasta(e.target.value)} placeholder="Hasta" />
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-6 d-flex align-items-end justify-content-end">
+                  <div className="btn-group">
+                    <button className="btn btn-sm btn-primary" onClick={loadData}>
+                      <i className="fa fa-filter mr-1"></i>Aplicar filtros
+                    </button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => {
+                      setFiltroPeriodoEstado("");
+                      setFiltroCliente("");
+                      setFiltroVehiculo("");
+                      setFiltroEmpleado("");
+                      setFiltroFechaInicioDesde("");
+                      setFiltroFechaInicioHasta("");
+                      setFiltroFechaFinDesde("");
+                      setFiltroFechaFinHasta("");
+                      setErrorMsg("");
+                    }}>
+                      <i className="fa fa-times mr-1"></i>Limpiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="card-body p-0">
               {alquileres.length === 0 && !loading ? (
                 <div className="p-3">
@@ -668,7 +1022,12 @@ export default function AlquilerPage() {
                     </thead>
                     <tbody>
                       {alquileres.map((a) => {
-                        const estadoInfo = calcularEstado(a.fecha_inicio, a.fecha_fin);
+                        // Calcular el estado real según las fechas (para PENDIENTE, EN_CURSO, CHECKOUT)
+                        // Solo si el alquiler no está FINALIZADO o CANCELADO
+                        const estadoReal = (a.estado === "FINALIZADO" || a.estado === "CANCELADO") 
+                          ? a.estado 
+                          : calcularEstado(a.fecha_inicio, a.fecha_fin).estado;
+                        
                         return (
                         <tr key={a.id_alquiler}>
                           <td>{a.id_alquiler}</td>
@@ -695,9 +1054,7 @@ export default function AlquilerPage() {
                             </button>
                           </td>
                           <td>
-                            <span className={`badge ${estadoInfo.clase}`}>
-                              {estadoInfo.estado}
-                            </span>
+                            {getBadgeEstado(estadoReal)}
                           </td>
                           <td className="text-center">
                             <button
@@ -708,6 +1065,18 @@ export default function AlquilerPage() {
                             >
                               <i className="fa fa-file-invoice-dollar"></i>
                             </button>{" "}
+                            {estadoReal === "CHECKOUT" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-success mr-1"
+                                  onClick={() => handleAbrirCheckout(a)}
+                                  title="Finalizar Alquiler"
+                                >
+                                  <i className="fa fa-check-circle"></i>
+                                </button>{" "}
+                              </>
+                            )}
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary mr-1"
@@ -715,6 +1084,18 @@ export default function AlquilerPage() {
                             >
                               <i className="fa fa-pencil-alt"></i>
                             </button>{" "}
+                            {(estadoReal === "PENDIENTE" || estadoReal === "EN_CURSO") && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger mr-1"
+                                  onClick={() => handleAbrirCancelar(a)}
+                                  title="Cancelar Alquiler"
+                                >
+                                  <i className="fa fa-ban"></i>
+                                </button>{" "}
+                              </>
+                            )}
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-danger"
@@ -847,6 +1228,326 @@ export default function AlquilerPage() {
                   onClick={closeMultasModal}
                 >
                   Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Checkout */}
+      {showCheckoutModal && (
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowCheckoutModal(false)}
+        >
+          <div
+            className="modal-dialog modal-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header bg-success">
+                <h5 className="modal-title">
+                  <i className="fa fa-check-circle mr-2"></i>
+                  Finalizar Alquiler
+                </h5>
+                <button
+                  type="button"
+                  className="close"
+                  onClick={() => setShowCheckoutModal(false)}
+                >
+                  <span>&times;</span>
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <p className="mb-1">
+                      <strong>ID Alquiler:</strong> {checkoutData.alquilerId}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Vehículo:</strong>{" "}
+                      {
+                        vehiculos.find(
+                          (v) =>
+                            v.id_vehiculo ===
+                            alquileres.find(
+                              (a) => a.id_alquiler === checkoutData.alquilerId
+                            )?.id_vehiculo
+                        )?.marca
+                      }{" "}
+                      {
+                        vehiculos.find(
+                          (v) =>
+                            v.id_vehiculo ===
+                            alquileres.find(
+                              (a) => a.id_alquiler === checkoutData.alquilerId
+                            )?.id_vehiculo
+                        )?.modelo
+                      }
+                    </p>
+                  </div>
+                  <div className="col-md-6">
+                    <p className="mb-1">
+                      <strong>Fecha Inicio:</strong>{" "}
+                      {new Date(
+                        alquileres.find(
+                          (a) => a.id_alquiler === checkoutData.alquilerId
+                        )?.fecha_inicio || ""
+                      ).toLocaleDateString("es-AR")}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Fecha Fin:</strong>{" "}
+                      {new Date(
+                        alquileres.find(
+                          (a) => a.id_alquiler === checkoutData.alquilerId
+                        )?.fecha_fin || ""
+                      ).toLocaleDateString("es-AR")}
+                    </p>
+                  </div>
+                </div>
+
+                <hr />
+
+                <div className="form-group">
+                  <label htmlFor="kmInicial">
+                    <strong>Kilometraje Inicial:</strong>
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    id="kmInicial"
+                    value={checkoutData.kmInicial || ""}
+                    disabled
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="kmFinal">
+                    <strong>Kilometraje Final: *</strong>
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    id="kmFinal"
+                    value={checkoutData.kmFinal}
+                    onChange={(e) =>
+                      setCheckoutData({
+                        ...checkoutData,
+                        kmFinal: e.target.value,
+                      })
+                    }
+                    placeholder="Ingrese el kilometraje final"
+                    min={checkoutData.kmInicial || 0}
+                  />
+                </div>
+
+                {checkoutData.kmFinal && checkoutData.kmInicial && (
+                  <div className="alert alert-info">
+                    <strong>Kilómetros recorridos:</strong>{" "}
+                    {parseInt(checkoutData.kmFinal) -
+                      parseInt(checkoutData.kmInicial)}{" "}
+                    km
+                    {parseInt(checkoutData.kmFinal) -
+                      parseInt(checkoutData.kmInicial) >
+                      10000 && (
+                      <div className="text-warning mt-2">
+                        <i className="fa fa-exclamation-triangle mr-1"></i>
+                        Atención: Se superan los 10,000 km recomendados
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label htmlFor="empleadoFinalizador">
+                    <strong>Empleado Finalizador: *</strong>
+                  </label>
+                  <select
+                    className="form-control"
+                    id="empleadoFinalizador"
+                    value={checkoutData.idEmpleadoFinalizador}
+                    onChange={(e) =>
+                      setCheckoutData({
+                        ...checkoutData,
+                        idEmpleadoFinalizador: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Seleccione un empleado</option>
+                    {empleados.map((emp) => (
+                      <option key={emp.id_empleado} value={emp.id_empleado}>
+                        {emp.nombre} {emp.apellido} - {emp.puesto}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="observacionesFinalizacion">
+                    <strong>Observaciones:</strong>
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="observacionesFinalizacion"
+                    rows="3"
+                    value={checkoutData.observacionesFinalizacion}
+                    onChange={(e) =>
+                      setCheckoutData({
+                        ...checkoutData,
+                        observacionesFinalizacion: e.target.value,
+                      })
+                    }
+                    placeholder="Observaciones sobre la finalización del alquiler (opcional)"
+                  ></textarea>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCheckoutModal(false)}
+                  disabled={loadingCheckout}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleCheckout}
+                  disabled={loadingCheckout}
+                >
+                  {loadingCheckout ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm mr-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa fa-check mr-2"></i>
+                      Finalizar Alquiler
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+
+      {/* Modal de Cancelación */}
+      {showCancelarModal && (
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowCancelarModal(false)}
+        >
+          <div
+            className="modal-dialog modal-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header bg-danger">
+                <h5 className="modal-title">
+                  <i className="fa fa-ban mr-2"></i>
+                  Cancelar Alquiler
+                </h5>
+                <button
+                  type="button"
+                  className="close"
+                  onClick={() => setShowCancelarModal(false)}
+                >
+                  <span>&times;</span>
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-warning">
+                  <i className="fa fa-exclamation-triangle mr-2"></i>
+                  ¿Está seguro de que desea cancelar este alquiler? Esta acción no se puede deshacer.
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="motivoCancelacion">
+                    <i className="fa fa-comment mr-1"></i>
+                    Motivo de cancelación <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="motivoCancelacion"
+                    rows="4"
+                    value={cancelarData.motivoCancelacion}
+                    onChange={(e) =>
+                      setCancelarData({
+                        ...cancelarData,
+                        motivoCancelacion: e.target.value,
+                      })
+                    }
+                    placeholder="Ingrese el motivo de la cancelación del alquiler"
+                  ></textarea>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="empleadoCancelador">
+                    <i className="fa fa-user-tie mr-1"></i>
+                    Empleado que cancela <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    className="form-control"
+                    id="empleadoCancelador"
+                    value={cancelarData.idEmpleadoCancelador}
+                    onChange={(e) =>
+                      setCancelarData({
+                        ...cancelarData,
+                        idEmpleadoCancelador: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Seleccione un empleado</option>
+                    {empleados.map((emp) => (
+                      <option key={emp.id_empleado} value={emp.id_empleado}>
+                        {emp.nombre} {emp.apellido} - {emp.cargo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCancelarModal(false)}
+                  disabled={loadingCancelar}
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleCancelar}
+                  disabled={loadingCancelar}
+                >
+                  {loadingCancelar ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm mr-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      Cancelando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa fa-ban mr-2"></i>
+                      Confirmar Cancelación
+                    </>
+                  )}
                 </button>
               </div>
             </div>

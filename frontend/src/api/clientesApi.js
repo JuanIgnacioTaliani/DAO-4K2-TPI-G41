@@ -50,8 +50,8 @@ const mockApi = {
 
 // ========== API EXPORTS ==========
 // GET /clientes/
-export const getClientes = () =>
-  USE_MOCK ? mockApi.getClientes() : api.get("/clientes/");
+export const getClientes = (params = {}) =>
+  USE_MOCK ? mockApi.getClientes() : api.get("/clientes/", { params });
 
 // POST /clientes/
 export const createCliente = (cliente) =>

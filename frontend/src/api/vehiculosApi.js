@@ -49,8 +49,11 @@ const mockApi = {
 };
 
 // ========== API EXPORTS ==========
-export const getVehiculos = () =>
-  USE_MOCK ? mockApi.getVehiculos() : api.get("/vehiculos/");
+export const getVehiculos = (params = {}) =>
+  USE_MOCK ? mockApi.getVehiculos() : api.get("/vehiculos/", { params });
+
+export const getVehiculosConDisponibilidad = () =>
+  api.get("/vehiculos/disponibilidad/all");
 
 export const createVehiculo = (vehiculo) =>
   USE_MOCK ? mockApi.createVehiculo(vehiculo) : api.post("/vehiculos/", vehiculo);

@@ -13,7 +13,6 @@ from ..models import (
     CategoriaVehiculo,
     EstadoVehiculo,
     Vehiculo,
-    Reserva,
     Alquiler,
     MultaDanio,
     Mantenimiento,
@@ -31,7 +30,6 @@ def clear_all_data(db: Session):
     db.query(MultaDanio).delete()
     db.query(Mantenimiento).delete()
     db.query(Alquiler).delete()
-    db.query(Reserva).delete()
     db.query(Vehiculo).delete()
     db.query(EstadoVehiculo).delete()
     db.query(CategoriaVehiculo).delete()
@@ -141,8 +139,7 @@ def seed_database(db: Session = Depends(get_db)):
             EstadoVehiculo(id_estado=1, nombre="Disponible", descripcion="Vehículo listo para alquilar"),
             EstadoVehiculo(id_estado=2, nombre="Alquilado", descripcion="Vehículo actualmente en alquiler"),
             EstadoVehiculo(id_estado=3, nombre="Mantenimiento", descripcion="Vehículo en reparación o servicio"),
-            EstadoVehiculo(id_estado=4, nombre="Reservado", descripcion="Vehículo con reserva confirmada"),
-            EstadoVehiculo(id_estado=5, nombre="Fuera de Servicio", descripcion="Vehículo no operativo"),
+            EstadoVehiculo(id_estado=4, nombre="Fuera de Servicio", descripcion="Vehículo no operativo"),
         ]
         db.bulk_save_objects(estados)
         db.commit()
@@ -185,59 +182,38 @@ def seed_database(db: Session = Depends(get_db)):
         db.commit()
         stats["vehiculos"] = len(vehiculos)
         
-        # 6. Reservas
-        reservas = [
-            Reserva(
-                id_reserva=1, id_cliente=1, id_vehiculo=5,
-                fecha_inicio=datetime.strptime("2025-11-25", "%Y-%m-%d").date(),
-                fecha_fin=datetime.strptime("2025-11-30", "%Y-%m-%d").date(),
-                estado="CONFIRMADA", monto_senia=Decimal("6000.00"),
-                fecha_creacion=datetime.strptime("2025-11-10T10:30:00", "%Y-%m-%dT%H:%M:%S")
-            ),
-            Reserva(
-                id_reserva=2, id_cliente=2, id_vehiculo=2,
-                fecha_inicio=datetime.strptime("2025-12-01", "%Y-%m-%d").date(),
-                fecha_fin=datetime.strptime("2025-12-05", "%Y-%m-%d").date(),
-                estado="PENDIENTE", monto_senia=Decimal("2000.00"),
-                fecha_creacion=datetime.strptime("2025-11-12T14:15:00", "%Y-%m-%dT%H:%M:%S")
-            ),
-        ]
-        db.bulk_save_objects(reservas)
-        db.commit()
-        stats["reservas"] = len(reservas)
-        
-        # 7. Alquileres
+        # 6. Alquileres
         alquileres = [
             Alquiler(
-                id_alquiler=1, id_cliente=1, id_vehiculo=3, id_empleado=1, id_reserva=None,
+                id_alquiler=1, id_cliente=1, id_vehiculo=3, id_empleado=1,
                 fecha_inicio=datetime.strptime("2025-11-10", "%Y-%m-%d").date(),
                 fecha_fin=datetime.strptime("2025-11-15", "%Y-%m-%d").date(),
                 costo_base=Decimal("37500.00"), costo_total=Decimal("37500.00"),
                 estado="FINALIZADO", observaciones="Cliente dejó el vehículo en perfectas condiciones"
             ),
             Alquiler(
-                id_alquiler=2, id_cliente=2, id_vehiculo=1, id_empleado=2, id_reserva=None,
+                id_alquiler=2, id_cliente=2, id_vehiculo=1, id_empleado=2,
                 fecha_inicio=datetime.strptime("2025-11-14", "%Y-%m-%d").date(),
                 fecha_fin=datetime.strptime("2025-11-22", "%Y-%m-%d").date(),
                 costo_base=Decimal("30000.00"), costo_total=Decimal("30000.00"),
                 estado="EN_CURSO", observaciones="Incluye seguro adicional - $2500"
             ),
             Alquiler(
-                id_alquiler=3, id_cliente=3, id_vehiculo=4, id_empleado=1, id_reserva=None,
+                id_alquiler=3, id_cliente=3, id_vehiculo=4, id_empleado=1,
                 fecha_inicio=datetime.strptime("2025-11-05", "%Y-%m-%d").date(),
                 fecha_fin=datetime.strptime("2025-11-08", "%Y-%m-%d").date(),
                 costo_base=Decimal("15000.00"), costo_total=Decimal("15000.00"),
                 estado="FINALIZADO", observaciones=None
             ),
             Alquiler(
-                id_alquiler=4, id_cliente=4, id_vehiculo=2, id_empleado=3, id_reserva=None,
+                id_alquiler=4, id_cliente=4, id_vehiculo=2, id_empleado=3,
                 fecha_inicio=datetime.strptime("2025-11-25", "%Y-%m-%d").date(),
                 fecha_fin=datetime.strptime("2025-11-30", "%Y-%m-%d").date(),
                 costo_base=Decimal("17500.00"), costo_total=Decimal("17500.00"),
                 estado="PENDIENTE", observaciones="Alquiler programado para fin de mes"
             ),
             Alquiler(
-                id_alquiler=5, id_cliente=1, id_vehiculo=5, id_empleado=2, id_reserva=None,
+                id_alquiler=5, id_cliente=1, id_vehiculo=5, id_empleado=2,
                 fecha_inicio=datetime.strptime("2025-12-01", "%Y-%m-%d").date(),
                 fecha_fin=datetime.strptime("2025-12-10", "%Y-%m-%d").date(),
                 costo_base=Decimal("108000.00"), costo_total=Decimal("108000.00"),
@@ -248,7 +224,7 @@ def seed_database(db: Session = Depends(get_db)):
         db.commit()
         stats["alquileres"] = len(alquileres)
         
-        # 8. Multas y Daños
+        # 7. Multas y Daños
         multas = [
             MultaDanio(
                 id_multa_danio=1, id_alquiler=1, tipo="multa",
@@ -288,7 +264,7 @@ def seed_database(db: Session = Depends(get_db)):
         db.commit()
         stats["multas_danios"] = len(multas)
         
-        # 9. Mantenimientos
+        # 8. Mantenimientos
         mantenimientos = [
             Mantenimiento(
                 id_mantenimiento=1, id_vehiculo=6,

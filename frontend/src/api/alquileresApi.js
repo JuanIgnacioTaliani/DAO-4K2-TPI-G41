@@ -19,8 +19,9 @@ const api = axios.create({
 let alquileresData = [...mockAlquileres];
 
 const mockApi = {
-  getAlquileres: async () => {
+  getAlquileres: async (_params) => {
     await delay();
+    // opcional: aplicar filtros en MOCK si se requiere
     return { data: alquileresData };
   },
 
@@ -57,8 +58,11 @@ const mockApi = {
 
 // ========== API EXPORTS ==========
 // GET /alquileres/
-export const getAlquileres = () =>
-  USE_MOCK ? mockApi.getAlquileres() : api.get("/alquileres/");
+export const getAlquileres = (params) =>
+  USE_MOCK ? mockApi.getAlquileres(params) : api.get("/alquileres/", { params });
+
+// GET /alquileres/{id}
+export const getAlquiler = (id) => api.get(`/alquileres/${id}`);
 
 // POST /alquileres/
 export const createAlquiler = (alquiler) =>
@@ -84,3 +88,10 @@ export const verificarDisponibilidad = (idVehiculo, fechaInicio, fechaFin) =>
 export const getOcupacionVehiculo = (idVehiculo) =>
   api.get(`/alquileres/vehiculo/${idVehiculo}/ocupacion`);
 
+// PUT /alquileres/{id}/checkout
+export const realizarCheckout = (id, checkoutData) =>
+  api.put(`/alquileres/${id}/checkout`, checkoutData);
+
+// PUT /alquileres/{id}/cancelar
+export const cancelarAlquiler = (id, datoCancelacion) =>
+  api.put(`/alquileres/${id}/cancelar`, datoCancelacion);

@@ -55,6 +55,14 @@ function Menu() {
           </p>
         </Link>
       </li>
+      <li className="nav-item has-treeview">
+        <Link to="/mantenimientos" className="nav-link">
+          <i className="nav-icon fas fa-wrench" />
+          <p>
+            Mantenimientos
+          </p>
+        </Link>
+      </li>
     </>
   );
 }

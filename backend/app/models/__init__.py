@@ -5,5 +5,4 @@ from .empleados import Empleado
 from .estados_vehiculo import EstadoVehiculo
 from .mantenimientos import Mantenimiento
 from .multasDanios import MultaDanio
-from .reservas import Reserva
 from .vehiculos import Vehiculo
