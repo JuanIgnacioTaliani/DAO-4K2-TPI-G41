@@ -8,6 +8,7 @@ import {
   createAlquiler,
   updateAlquiler,
   deleteAlquiler,
+  verificarDisponibilidad,
 } from "../api/alquileresApi";
 import { getClientes } from "../api/clientesApi";
 import { getVehiculos } from "../api/vehiculosApi";
@@ -30,13 +31,16 @@ export default function AlquilerPage() {
   const [alquileres, setAlquileres] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
+  const [vehiculosDisponibles, setVehiculosDisponibles] = useState([]);
   const [empleados, setEmpleados] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [multasCounts, setMultasCounts] = useState({});
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingDisponibilidad, setLoadingDisponibilidad] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [disponibilidadMsg, setDisponibilidadMsg] = useState("");
   const [costoBaseCalculado, setCostoBaseCalculado] = useState(0);
   const [diasAlquiler, setDiasAlquiler] = useState(0);
   const [showMultasModal, setShowMultasModal] = useState(false);
@@ -81,6 +85,81 @@ export default function AlquilerPage() {
     setTitulo("Gestión de Alquileres");
     loadData();
   }, [setTitulo]);
+
+  // Verificar disponibilidad cuando cambian las fechas
+  useEffect(() => {
+    const verificarVehiculosDisponibles = async () => {
+      if (!form.fecha_inicio || !form.fecha_fin) {
+        setVehiculosDisponibles([]);
+        setDisponibilidadMsg("");
+        return;
+      }
+
+      setLoadingDisponibilidad(true);
+      setDisponibilidadMsg("");
+
+      try {
+        // Verificar disponibilidad para cada vehículo
+        const disponibilidadPromises = vehiculos.map(async (vehiculo) => {
+          try {
+            const res = await verificarDisponibilidad(
+              vehiculo.id_vehiculo,
+              form.fecha_inicio,
+              form.fecha_fin
+            );
+            return {
+              ...vehiculo,
+              disponible: res.data.disponible,
+              conflictos: res.data.conflictos || [],
+            };
+          } catch (err) {
+            console.error(`Error verificando vehículo ${vehiculo.id_vehiculo}:`, err);
+            return {
+              ...vehiculo,
+              disponible: false,
+              conflictos: [],
+            };
+          }
+        });
+
+        const resultados = await Promise.all(disponibilidadPromises);
+        const disponibles = resultados.filter((v) => v.disponible);
+        
+        setVehiculosDisponibles(resultados);
+        
+        if (disponibles.length === 0) {
+          setDisponibilidadMsg("⚠️ No hay vehículos disponibles en el período seleccionado");
+        } else {
+          setDisponibilidadMsg(
+            `✅ ${disponibles.length} vehículo${disponibles.length !== 1 ? 's' : ''} disponible${disponibles.length !== 1 ? 's' : ''} en el período seleccionado`
+          );
+        }
+
+        // Si el vehículo seleccionado ya no está disponible, limpiarlo
+        if (form.id_vehiculo) {
+          const vehiculoSeleccionado = resultados.find(
+            (v) => v.id_vehiculo === parseInt(form.id_vehiculo)
+          );
+          if (vehiculoSeleccionado && !vehiculoSeleccionado.disponible) {
+            setForm((prev) => ({ ...prev, id_vehiculo: "" }));
+            setCostoBaseCalculado(0);
+            setDiasAlquiler(0);
+          }
+        }
+      } catch (err) {
+        console.error("Error al verificar disponibilidad:", err);
+        setDisponibilidadMsg("❌ Error al verificar disponibilidad de vehículos");
+      } finally {
+        setLoadingDisponibilidad(false);
+      }
+    };
+
+    // Solo verificar si no estamos editando o si cambiaron las fechas durante edición
+    if (editingId === null || (form.fecha_inicio && form.fecha_fin)) {
+      verificarVehiculosDisponibles();
+    }
+  }, [form.fecha_inicio, form.fecha_fin, vehiculos, editingId]);
+
 
   // Calcular costo base cuando cambian fechas o vehículo
   useEffect(() => {
@@ -144,12 +223,6 @@ export default function AlquilerPage() {
     fechaInicio.setHours(0, 0, 0, 0);
     const fechaFin = new Date(form.fecha_fin);
     fechaFin.setHours(0, 0, 0, 0);
-
-    // Validar que fecha inicio no sea anterior a hoy
-    if (editingId === null && fechaInicio < hoy) {
-      setErrorMsg("La fecha de inicio no puede ser anterior a la fecha actual");
-      return;
-    }
 
     // Validar que fecha fin no sea anterior a fecha inicio
     if (fechaFin < fechaInicio) {
@@ -315,62 +388,16 @@ export default function AlquilerPage() {
             </div>
             <div className="card-body">
               <form onSubmit={handleSubmit}>
+                {/* Paso 1: Fechas (PRIMERO) */}
                 <div className="row">
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label">Cliente *</label>
-                    <select
-                      className="form-control"
-                      name="id_cliente"
-                      value={form.id_cliente}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {clientes.map((c) => (
-                        <option key={c.id_cliente} value={c.id_cliente}>
-                          {c.nombre} {c.apellido} - {c.dni}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="col-12 mb-3">
+                    <h5 className="text-primary">
+                      <i className="fa fa-calendar mr-2"></i>
+                      Paso 1: Seleccioná el período de alquiler
+                    </h5>
                   </div>
 
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label">Vehículo *</label>
-                    <select
-                      className="form-control"
-                      name="id_vehiculo"
-                      value={form.id_vehiculo}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {vehiculos.map((v) => (
-                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
-                          {v.patente} - {v.marca} {v.modelo}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label">Empleado *</label>
-                    <select
-                      className="form-control"
-                      name="id_empleado"
-                      value={form.id_empleado}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {empleados.map((e) => (
-                        <option key={e.id_empleado} value={e.id_empleado}>
-                          {e.nombre} {e.apellido}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-md-3 mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Fecha Inicio *</label>
                     <input
                       className="form-control"
@@ -388,7 +415,7 @@ export default function AlquilerPage() {
                     )}
                   </div>
 
-                  <div className="col-md-3 mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Fecha Fin *</label>
                     <input
                       className="form-control"
@@ -409,6 +436,132 @@ export default function AlquilerPage() {
                         Debe ser posterior o igual a la fecha de inicio
                       </small>
                     )}
+                  </div>
+
+                  {/* Mensaje de disponibilidad */}
+                  {(form.fecha_inicio && form.fecha_fin) && (
+                    <div className="col-12 mb-3">
+                      {loadingDisponibilidad ? (
+                        <div className="alert alert-info mb-0">
+                          <i className="fa fa-spinner fa-spin mr-2"></i>
+                          Verificando disponibilidad de vehículos...
+                        </div>
+                      ) : disponibilidadMsg ? (
+                        <div className={`alert ${disponibilidadMsg.startsWith('✅') ? 'alert-success' : 'alert-warning'} mb-0`}>
+                          {disponibilidadMsg}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                <hr />
+
+                {/* Paso 2: Selección de vehículo, cliente y empleado */}
+                <div className="row">
+                  <div className="col-12 mb-3">
+                    <h5 className="text-primary">
+                      <i className="fa fa-car mr-2"></i>
+                      Paso 2: Seleccioná el vehículo y completá los datos
+                    </h5>
+                  </div>
+
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Cliente *</label>
+                    <select
+                      className="form-control"
+                      name="id_cliente"
+                      value={form.id_cliente}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">-- Seleccionar --</option>
+                      {clientes.map((c) => (
+                        <option key={c.id_cliente} value={c.id_cliente}>
+                          {c.nombre} {c.apellido} - {c.dni}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">
+                      Vehículo * 
+                      {loadingDisponibilidad && (
+                        <small className="text-muted ml-2">
+                          <i className="fa fa-spinner fa-spin"></i>
+                        </small>
+                      )}
+                    </label>
+                    <select
+                      className="form-control"
+                      name="id_vehiculo"
+                      value={form.id_vehiculo}
+                      onChange={handleChange}
+                      disabled={!form.fecha_inicio || !form.fecha_fin || loadingDisponibilidad}
+                      required
+                    >
+                      <option value="">
+                        {!form.fecha_inicio || !form.fecha_fin
+                          ? "-- Primero seleccioná las fechas --"
+                          : loadingDisponibilidad
+                          ? "-- Verificando disponibilidad... --"
+                          : "-- Seleccionar vehículo --"}
+                      </option>
+                      
+                      {/* Vehículos DISPONIBLES primero */}
+                      {vehiculosDisponibles.filter(v => v.disponible).length > 0 && (
+                        <optgroup label="✅ Disponibles">
+                          {vehiculosDisponibles
+                            .filter(v => v.disponible)
+                            .map((v) => (
+                              <option key={v.id_vehiculo} value={v.id_vehiculo}>
+                                {v.patente} - {v.marca} {v.modelo}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      
+                      {/* Vehículos NO DISPONIBLES después (deshabilitados) */}
+                      {vehiculosDisponibles.filter(v => !v.disponible).length > 0 && (
+                        <optgroup label="❌ No Disponibles">
+                          {vehiculosDisponibles
+                            .filter(v => !v.disponible)
+                            .map((v) => (
+                              <option key={v.id_vehiculo} value={v.id_vehiculo} disabled>
+                                {v.patente} - {v.marca} {v.modelo} (Ocupado)
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    {!form.fecha_inicio || !form.fecha_fin ? (
+                      <small className="text-muted">
+                        Seleccioná las fechas para ver vehículos disponibles
+                      </small>
+                    ) : form.id_vehiculo && vehiculosDisponibles.find(v => v.id_vehiculo === parseInt(form.id_vehiculo))?.conflictos?.length > 0 ? (
+                      <small className="text-danger">
+                        ⚠️ Este vehículo tiene conflictos en las fechas seleccionadas
+                      </small>
+                    ) : null}
+                  </div>
+
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Empleado *</label>
+                    <select
+                      className="form-control"
+                      name="id_empleado"
+                      value={form.id_empleado}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">-- Seleccionar --</option>
+                      {empleados.map((e) => (
+                        <option key={e.id_empleado} value={e.id_empleado}>
+                          {e.nombre} {e.apellido}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Información calculada automáticamente */}
