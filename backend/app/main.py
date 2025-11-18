@@ -5,7 +5,7 @@ import time
 
 from .database import Base, engine
 from app import models
-from .routers import clientes, empleados, vehiculos, categorias_vehiculo, estados_vehiculo
+from .routers import clientes, empleados, vehiculos, categorias_vehiculo, estados_vehiculo, alquileres
 
 app = FastAPI(title="DAO - Sistema de Alquiler de Vehículos")
 
@@ -51,6 +51,7 @@ app.include_router(empleados.router)
 app.include_router(vehiculos.router)
 app.include_router(categorias_vehiculo.router)
 app.include_router(estados_vehiculo.router)
+app.include_router(alquileres.router)
 
 @app.get("/")
 def root():
