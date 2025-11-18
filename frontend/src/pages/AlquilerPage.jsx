@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { selectStyles } from "../assets/selectStyles";
 import modalDialogService from "../api/modalDialog.service";
 
@@ -8,48 +8,71 @@ import {
   createAlquiler,
   updateAlquiler,
   deleteAlquiler,
+  verificarDisponibilidad,
 } from "../api/alquileresApi";
 import { getClientes } from "../api/clientesApi";
 import { getVehiculos } from "../api/vehiculosApi";
 import { getEmpleados } from "../api/empleadosApi";
+import { getCategoriasVehiculo } from "../api/categoriasVehiculoApi";
+import { getMultasDaniosByAlquiler } from "../api/multasDaniosApi";
 
 const emptyForm = {
   id_cliente: "",
   id_vehiculo: "",
   id_empleado: "",
-  id_reserva: "",
   fecha_inicio: "",
   fecha_fin: "",
-  costo_base: "",
-  costo_total: "",
-  estado: "EN_CURSO",
   observaciones: "",
 };
 
 export default function AlquilerPage() {
   const { setTitulo } = useOutletContext();
+  const navigate = useNavigate();
   const [alquileres, setAlquileres] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
+  const [vehiculosDisponibles, setVehiculosDisponibles] = useState([]);
   const [empleados, setEmpleados] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [multasCounts, setMultasCounts] = useState({});
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingDisponibilidad, setLoadingDisponibilidad] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [disponibilidadMsg, setDisponibilidadMsg] = useState("");
+  const [costoBaseCalculado, setCostoBaseCalculado] = useState(0);
+  const [diasAlquiler, setDiasAlquiler] = useState(0);
+  const [showMultasModal, setShowMultasModal] = useState(false);
+  const [multasModalData, setMultasModalData] = useState([]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [aRes, cRes, vRes, eRes] = await Promise.all([
+      const [aRes, cRes, vRes, eRes, catRes] = await Promise.all([
         getAlquileres(),
         getClientes(),
         getVehiculos(),
         getEmpleados(),
+        getCategoriasVehiculo(),
       ]);
       setAlquileres(aRes.data);
       setClientes(cRes.data);
       setVehiculos(vRes.data);
       setEmpleados(eRes.data);
+      setCategorias(catRes.data);
+
+      // Cargar cantidad de multas para cada alquiler
+      const counts = {};
+      for (const alquiler of aRes.data) {
+        try {
+          const multasRes = await getMultasDaniosByAlquiler(alquiler.id_alquiler);
+          counts[alquiler.id_alquiler] = multasRes.data.length;
+        } catch (err) {
+          counts[alquiler.id_alquiler] = 0;
+        }
+      }
+      setMultasCounts(counts);
     } catch (err) {
       console.error(err);
       setErrorMsg("Error al cargar alquileres / clientes / vehículos / empleados");
@@ -63,28 +86,170 @@ export default function AlquilerPage() {
     loadData();
   }, [setTitulo]);
 
+  // Verificar disponibilidad cuando cambian las fechas
+  useEffect(() => {
+    const verificarVehiculosDisponibles = async () => {
+      if (!form.fecha_inicio || !form.fecha_fin) {
+        setVehiculosDisponibles([]);
+        setDisponibilidadMsg("");
+        return;
+      }
+
+      setLoadingDisponibilidad(true);
+      setDisponibilidadMsg("");
+
+      try {
+        // Verificar disponibilidad para cada vehículo
+        const disponibilidadPromises = vehiculos.map(async (vehiculo) => {
+          try {
+            const res = await verificarDisponibilidad(
+              vehiculo.id_vehiculo,
+              form.fecha_inicio,
+              form.fecha_fin
+            );
+            return {
+              ...vehiculo,
+              disponible: res.data.disponible,
+              conflictos: res.data.conflictos || [],
+            };
+          } catch (err) {
+            console.error(`Error verificando vehículo ${vehiculo.id_vehiculo}:`, err);
+            return {
+              ...vehiculo,
+              disponible: false,
+              conflictos: [],
+            };
+          }
+        });
+
+        const resultados = await Promise.all(disponibilidadPromises);
+        const disponibles = resultados.filter((v) => v.disponible);
+        
+        setVehiculosDisponibles(resultados);
+        
+        if (disponibles.length === 0) {
+          setDisponibilidadMsg("⚠️ No hay vehículos disponibles en el período seleccionado");
+        } else {
+          setDisponibilidadMsg(
+            `✅ ${disponibles.length} vehículo${disponibles.length !== 1 ? 's' : ''} disponible${disponibles.length !== 1 ? 's' : ''} en el período seleccionado`
+          );
+        }
+
+        // Si el vehículo seleccionado ya no está disponible, limpiarlo
+        if (form.id_vehiculo) {
+          const vehiculoSeleccionado = resultados.find(
+            (v) => v.id_vehiculo === parseInt(form.id_vehiculo)
+          );
+          if (vehiculoSeleccionado && !vehiculoSeleccionado.disponible) {
+            setForm((prev) => ({ ...prev, id_vehiculo: "" }));
+            setCostoBaseCalculado(0);
+            setDiasAlquiler(0);
+          }
+        }
+      } catch (err) {
+        console.error("Error al verificar disponibilidad:", err);
+        setDisponibilidadMsg("❌ Error al verificar disponibilidad de vehículos");
+      } finally {
+        setLoadingDisponibilidad(false);
+      }
+    };
+
+    // Solo verificar si no estamos editando o si cambiaron las fechas durante edición
+    if (editingId === null || (form.fecha_inicio && form.fecha_fin)) {
+      verificarVehiculosDisponibles();
+    }
+  }, [form.fecha_inicio, form.fecha_fin, vehiculos, editingId]);
+
+
+  // Calcular costo base cuando cambian fechas o vehículo
+  useEffect(() => {
+    if (form.fecha_inicio && form.fecha_fin && form.id_vehiculo) {
+      const fechaInicio = new Date(form.fecha_inicio);
+      const fechaFin = new Date(form.fecha_fin);
+      const diffTime = Math.abs(fechaFin - fechaInicio);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+      
+      const vehiculo = vehiculos.find(v => v.id_vehiculo === parseInt(form.id_vehiculo));
+      if (vehiculo) {
+        const categoria = categorias.find(c => c.id_categoria === vehiculo.id_categoria);
+        if (categoria) {
+          const tarifaDiaria = parseFloat(categoria.tarifa_diaria);
+          const costoBase = tarifaDiaria * diffDays;
+          setCostoBaseCalculado(costoBase);
+          setDiasAlquiler(diffDays);
+        }
+      }
+    } else {
+      setCostoBaseCalculado(0);
+      setDiasAlquiler(0);
+    }
+  }, [form.fecha_inicio, form.fecha_fin, form.id_vehiculo, vehiculos, categorias]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Si cambia la fecha inicio, resetear fecha fin
+    if (name === "fecha_inicio") {
+      setForm((prev) => ({
+        ...prev,
+        [name]: value,
+        fecha_fin: "", // Resetear fecha fin cuando cambia fecha inicio
+      }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  // Obtener fecha mínima para los inputs (hoy)
+  const getFechaMinima = () => {
+    const hoy = new Date();
+    const year = hoy.getFullYear();
+    const month = String(hoy.getMonth() + 1).padStart(2, '0');
+    const day = String(hoy.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
 
+    // Validaciones de fechas
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaInicio = new Date(form.fecha_inicio);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const fechaFin = new Date(form.fecha_fin);
+    fechaFin.setHours(0, 0, 0, 0);
+
+    // Validar que fecha fin no sea anterior a fecha inicio
+    if (fechaFin < fechaInicio) {
+      setErrorMsg("La fecha de fin no puede ser anterior a la fecha de inicio");
+      return;
+    }
+    
+    // Calcular estado automáticamente según fechas
+    let estadoCalculado;
+    if (hoy < fechaInicio) {
+      estadoCalculado = "PENDIENTE"; // Aún no comienza
+    } else if (hoy >= fechaInicio && hoy <= fechaFin) {
+      estadoCalculado = "EN_CURSO"; // Está en progreso
+    } else {
+      estadoCalculado = "FINALIZADO"; // Ya terminó
+    }
+
     const payload = {
       id_cliente: form.id_cliente ? parseInt(form.id_cliente, 10) : null,
       id_vehiculo: form.id_vehiculo ? parseInt(form.id_vehiculo, 10) : null,
       id_empleado: form.id_empleado ? parseInt(form.id_empleado, 10) : null,
-      id_reserva: form.id_reserva ? parseInt(form.id_reserva, 10) : null,
+      id_reserva: null, // Siempre null, se maneja automáticamente en backend
       fecha_inicio: form.fecha_inicio || null,
       fecha_fin: form.fecha_fin || null,
-      costo_base: form.costo_base ? parseFloat(form.costo_base) : null,
-      costo_total: form.costo_total ? parseFloat(form.costo_total) : null,
-      estado: form.estado || "EN_CURSO",
+      costo_base: costoBaseCalculado,
+      costo_total: costoBaseCalculado, // Inicialmente igual al costo base
+      estado: estadoCalculado,
       observaciones: form.observaciones || null,
     };
 
@@ -109,6 +274,8 @@ export default function AlquilerPage() {
 
       setForm(emptyForm);
       setEditingId(null);
+      setCostoBaseCalculado(0);
+      setDiasAlquiler(0);
       await loadData();
     } catch (err) {
       console.error(err);
@@ -123,12 +290,8 @@ export default function AlquilerPage() {
       id_cliente: a.id_cliente ?? "",
       id_vehiculo: a.id_vehiculo ?? "",
       id_empleado: a.id_empleado ?? "",
-      id_reserva: a.id_reserva ?? "",
       fecha_inicio: a.fecha_inicio ?? "",
       fecha_fin: a.fecha_fin ?? "",
-      costo_base: a.costo_base ?? "",
-      costo_total: a.costo_total ?? "",
-      estado: a.estado ?? "EN_CURSO",
       observaciones: a.observaciones ?? "",
     });
   };
@@ -137,6 +300,8 @@ export default function AlquilerPage() {
     setEditingId(null);
     setForm(emptyForm);
     setErrorMsg("");
+    setCostoBaseCalculado(0);
+    setDiasAlquiler(0);
   };
 
   const handleDelete = async (id) => {
@@ -173,6 +338,43 @@ export default function AlquilerPage() {
     return empleado ? `${empleado.nombre} ${empleado.apellido}` : "";
   };
 
+  const handleVerMultas = async (idAlquiler) => {
+    try {
+      const multasRes = await getMultasDaniosByAlquiler(idAlquiler);
+      setMultasModalData(multasRes.data);
+      setShowMultasModal(true);
+    } catch (err) {
+      console.error(err);
+      modalDialogService.Alert("Error al cargar las multas/daños");
+    }
+  };
+
+  const closeMultasModal = () => {
+    setShowMultasModal(false);
+    setMultasModalData([]);
+  };
+
+  const goToMultasPage = (idAlquiler) => {
+    navigate(`/multas-danios?id_alquiler=${idAlquiler}`);
+  };
+
+  // Función para calcular estado dinámicamente según fechas
+  const calcularEstado = (fechaInicio, fechaFin) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    if (hoy < inicio) {
+      return { estado: "PENDIENTE", clase: "badge-info" };
+    } else if (hoy >= inicio && hoy <= fin) {
+      return { estado: "EN_CURSO", clase: "badge-primary" };
+    } else {
+      return { estado: "FINALIZADO", clase: "badge-success" };
+    }
+  };
+
   return (
     <div className="container-fluid">
       <div className="row">
@@ -186,7 +388,84 @@ export default function AlquilerPage() {
             </div>
             <div className="card-body">
               <form onSubmit={handleSubmit}>
+                {/* Paso 1: Fechas (PRIMERO) */}
                 <div className="row">
+                  <div className="col-12 mb-3">
+                    <h5 className="text-primary">
+                      <i className="fa fa-calendar mr-2"></i>
+                      Paso 1: Seleccioná el período de alquiler
+                    </h5>
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Fecha Inicio *</label>
+                    <input
+                      className="form-control"
+                      type="date"
+                      name="fecha_inicio"
+                      value={form.fecha_inicio}
+                      onChange={handleChange}
+                      min={editingId === null ? getFechaMinima() : undefined}
+                      required
+                    />
+                    {editingId === null && (
+                      <small className="text-muted">
+                        No se puede seleccionar una fecha anterior a hoy
+                      </small>
+                    )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Fecha Fin *</label>
+                    <input
+                      className="form-control"
+                      type="date"
+                      name="fecha_fin"
+                      value={form.fecha_fin}
+                      onChange={handleChange}
+                      min={form.fecha_inicio || (editingId === null ? getFechaMinima() : undefined)}
+                      disabled={!form.fecha_inicio}
+                      required
+                    />
+                    {!form.fecha_inicio ? (
+                      <small className="text-muted">
+                        Primero seleccioná la fecha de inicio
+                      </small>
+                    ) : (
+                      <small className="text-muted">
+                        Debe ser posterior o igual a la fecha de inicio
+                      </small>
+                    )}
+                  </div>
+
+                  {/* Mensaje de disponibilidad */}
+                  {(form.fecha_inicio && form.fecha_fin) && (
+                    <div className="col-12 mb-3">
+                      {loadingDisponibilidad ? (
+                        <div className="alert alert-info mb-0">
+                          <i className="fa fa-spinner fa-spin mr-2"></i>
+                          Verificando disponibilidad de vehículos...
+                        </div>
+                      ) : disponibilidadMsg ? (
+                        <div className={`alert ${disponibilidadMsg.startsWith('✅') ? 'alert-success' : 'alert-warning'} mb-0`}>
+                          {disponibilidadMsg}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                <hr />
+
+                {/* Paso 2: Selección de vehículo, cliente y empleado */}
+                <div className="row">
+                  <div className="col-12 mb-3">
+                    <h5 className="text-primary">
+                      <i className="fa fa-car mr-2"></i>
+                      Paso 2: Seleccioná el vehículo y completá los datos
+                    </h5>
+                  </div>
+
                   <div className="col-md-4 mb-3">
                     <label className="form-label">Cliente *</label>
                     <select
@@ -206,21 +485,65 @@ export default function AlquilerPage() {
                   </div>
 
                   <div className="col-md-4 mb-3">
-                    <label className="form-label">Vehículo *</label>
+                    <label className="form-label">
+                      Vehículo * 
+                      {loadingDisponibilidad && (
+                        <small className="text-muted ml-2">
+                          <i className="fa fa-spinner fa-spin"></i>
+                        </small>
+                      )}
+                    </label>
                     <select
                       className="form-control"
                       name="id_vehiculo"
                       value={form.id_vehiculo}
                       onChange={handleChange}
+                      disabled={!form.fecha_inicio || !form.fecha_fin || loadingDisponibilidad}
                       required
                     >
-                      <option value="">-- Seleccionar --</option>
-                      {vehiculos.map((v) => (
-                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
-                          {v.patente} - {v.marca} {v.modelo}
-                        </option>
-                      ))}
+                      <option value="">
+                        {!form.fecha_inicio || !form.fecha_fin
+                          ? "-- Primero seleccioná las fechas --"
+                          : loadingDisponibilidad
+                          ? "-- Verificando disponibilidad... --"
+                          : "-- Seleccionar vehículo --"}
+                      </option>
+                      
+                      {/* Vehículos DISPONIBLES primero */}
+                      {vehiculosDisponibles.filter(v => v.disponible).length > 0 && (
+                        <optgroup label="✅ Disponibles">
+                          {vehiculosDisponibles
+                            .filter(v => v.disponible)
+                            .map((v) => (
+                              <option key={v.id_vehiculo} value={v.id_vehiculo}>
+                                {v.patente} - {v.marca} {v.modelo}
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      
+                      {/* Vehículos NO DISPONIBLES después (deshabilitados) */}
+                      {vehiculosDisponibles.filter(v => !v.disponible).length > 0 && (
+                        <optgroup label="❌ No Disponibles">
+                          {vehiculosDisponibles
+                            .filter(v => !v.disponible)
+                            .map((v) => (
+                              <option key={v.id_vehiculo} value={v.id_vehiculo} disabled>
+                                {v.patente} - {v.marca} {v.modelo} (Ocupado)
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
                     </select>
+                    {!form.fecha_inicio || !form.fecha_fin ? (
+                      <small className="text-muted">
+                        Seleccioná las fechas para ver vehículos disponibles
+                      </small>
+                    ) : form.id_vehiculo && vehiculosDisponibles.find(v => v.id_vehiculo === parseInt(form.id_vehiculo))?.conflictos?.length > 0 ? (
+                      <small className="text-danger">
+                        ⚠️ Este vehículo tiene conflictos en las fechas seleccionadas
+                      </small>
+                    ) : null}
                   </div>
 
                   <div className="col-md-4 mb-3">
@@ -241,81 +564,28 @@ export default function AlquilerPage() {
                     </select>
                   </div>
 
-                  <div className="col-md-3 mb-3">
-                    <label className="form-label">Fecha Inicio *</label>
-                    <input
-                      className="form-control"
-                      type="date"
-                      name="fecha_inicio"
-                      value={form.fecha_inicio}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-3 mb-3">
-                    <label className="form-label">Fecha Fin *</label>
-                    <input
-                      className="form-control"
-                      type="date"
-                      name="fecha_fin"
-                      value={form.fecha_fin}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-3 mb-3">
-                    <label className="form-label">Costo Base *</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      step="0.01"
-                      name="costo_base"
-                      value={form.costo_base}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-3 mb-3">
-                    <label className="form-label">Costo Total *</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      step="0.01"
-                      name="costo_total"
-                      value={form.costo_total}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label">Estado *</label>
-                    <select
-                      className="form-control"
-                      name="estado"
-                      value={form.estado}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="EN_CURSO">EN CURSO</option>
-                      <option value="FINALIZADO">FINALIZADO</option>
-                      <option value="CANCELADO">CANCELADO</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-4 mb-3">
-                    <label className="form-label">ID Reserva (opcional)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      name="id_reserva"
-                      value={form.id_reserva}
-                      onChange={handleChange}
-                    />
-                  </div>
+                  {/* Información calculada automáticamente */}
+                  {(form.fecha_inicio && form.fecha_fin && form.id_vehiculo) && (
+                    <div className="col-md-12 mb-3">
+                      <div className="alert alert-info mb-0">
+                        <strong>
+                          <i className="fa fa-calculator mr-2"></i>
+                          Cálculo automático:
+                        </strong>
+                        <br />
+                        Días de alquiler: <strong>{diasAlquiler}</strong> días
+                        <br />
+                        Costo base (por {diasAlquiler} día{diasAlquiler !== 1 ? 's' : ''}): 
+                        <strong> ${costoBaseCalculado.toFixed(2)}</strong>
+                        <br />
+                        Estado: <strong>{calcularEstado(form.fecha_inicio, form.fecha_fin).estado}</strong>
+                        <br />
+                        <small className="text-muted">
+                          El costo total incluirá multas/daños que se agreguen posteriormente
+                        </small>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="col-md-12 mb-3">
                     <label className="form-label">Observaciones</label>
@@ -391,12 +661,15 @@ export default function AlquilerPage() {
                         <th style={{ width: "110px" }}>Fecha Fin</th>
                         <th style={{ width: "100px" }}>Costo Base</th>
                         <th style={{ width: "100px" }}>Costo Total</th>
+                        <th style={{ width: "80px" }}>Multas</th>
                         <th style={{ width: "100px" }}>Estado</th>
-                        <th>Acciones</th>
+                        <th style={{ width: "180px" }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {alquileres.map((a) => (
+                      {alquileres.map((a) => {
+                        const estadoInfo = calcularEstado(a.fecha_inicio, a.fecha_fin);
+                        return (
                         <tr key={a.id_alquiler}>
                           <td>{a.id_alquiler}</td>
                           <td>{getClienteNombre(a.id_cliente)}</td>
@@ -406,20 +679,35 @@ export default function AlquilerPage() {
                           <td>{a.fecha_fin}</td>
                           <td>${a.costo_base}</td>
                           <td>${a.costo_total}</td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                a.estado === "EN_CURSO"
-                                  ? "badge-primary"
-                                  : a.estado === "FINALIZADO"
-                                  ? "badge-success"
-                                  : "badge-danger"
+                          <td className="text-center">
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${
+                                multasCounts[a.id_alquiler] > 0
+                                  ? "btn-warning"
+                                  : "btn-outline-secondary"
                               }`}
+                              onClick={() => handleVerMultas(a.id_alquiler)}
+                              title="Ver multas/daños"
                             >
-                              {a.estado}
+                              <i className="fa fa-exclamation-triangle mr-1"></i>
+                              {multasCounts[a.id_alquiler] || 0}
+                            </button>
+                          </td>
+                          <td>
+                            <span className={`badge ${estadoInfo.clase}`}>
+                              {estadoInfo.estado}
                             </span>
                           </td>
                           <td className="text-center">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-warning mr-1"
+                              onClick={() => goToMultasPage(a.id_alquiler)}
+                              title="Ir a Multas/Daños"
+                            >
+                              <i className="fa fa-file-invoice-dollar"></i>
+                            </button>{" "}
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary mr-1"
@@ -436,7 +724,8 @@ export default function AlquilerPage() {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -450,6 +739,120 @@ export default function AlquilerPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Multas/Daños */}
+      {showMultasModal && (
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={closeMultasModal}
+        >
+          <div
+            className="modal-dialog modal-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header bg-warning">
+                <h5 className="modal-title">
+                  <i className="fa fa-exclamation-triangle mr-2"></i>
+                  Multas y Daños
+                </h5>
+                <button
+                  type="button"
+                  className="close"
+                  onClick={closeMultasModal}
+                >
+                  <span>&times;</span>
+                </button>
+              </div>
+              <div className="modal-body">
+                {multasModalData.length === 0 ? (
+                  <div className="alert alert-info mb-0">
+                    No hay multas o daños registrados para este alquiler.
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-sm table-bordered">
+                      <thead className="thead-dark">
+                        <tr>
+                          <th>ID</th>
+                          <th>Tipo</th>
+                          <th>Descripción</th>
+                          <th>Monto</th>
+                          <th>Fecha Registro</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multasModalData.map((md) => (
+                          <tr key={md.id_multa_danio}>
+                            <td>{md.id_multa_danio}</td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  md.tipo === "multa"
+                                    ? "badge-danger"
+                                    : md.tipo === "daño"
+                                    ? "badge-warning"
+                                    : md.tipo === "retraso"
+                                    ? "badge-info"
+                                    : "badge-secondary"
+                                }`}
+                              >
+                                {md.tipo.toUpperCase()}
+                              </span>
+                            </td>
+                            <td>{md.descripcion || "-"}</td>
+                            <td className="text-right font-weight-bold">
+                              ${md.monto}
+                            </td>
+                            <td>
+                              {new Date(md.fecha_registro).toLocaleDateString(
+                                "es-AR"
+                              )}{" "}
+                              {new Date(md.fecha_registro).toLocaleTimeString(
+                                "es-AR",
+                                { hour: "2-digit", minute: "2-digit" }
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="table-active">
+                          <td colSpan="3" className="text-right">
+                            <strong>Total:</strong>
+                          </td>
+                          <td className="text-right font-weight-bold">
+                            <strong>
+                              $
+                              {multasModalData
+                                .reduce(
+                                  (sum, md) => sum + parseFloat(md.monto || 0),
+                                  0
+                                )
+                                .toFixed(2)}
+                            </strong>
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closeMultasModal}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
