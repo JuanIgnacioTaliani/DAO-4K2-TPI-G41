@@ -1,8 +1,8 @@
 import axios from "axios";
-import { mockEstadosVehiculo, delay } from "./mockData";
+import { mockEstadosVehiculo, delay, generateId } from "./mockData";
 
 // Configuración: cambiar a false para usar API real
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 const api = axios.create({
   baseURL: "http://localhost:8000",

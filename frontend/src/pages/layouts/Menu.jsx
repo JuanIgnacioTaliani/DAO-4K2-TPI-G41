@@ -47,6 +47,14 @@ function Menu() {
           </p>
         </Link>
       </li>
+      <li className="nav-item has-treeview">
+        <Link to="/multas-danios" className="nav-link">
+          <i className="nav-icon fas fa-exclamation-triangle" />
+          <p>
+            Multas y Daños
+          </p>
+        </Link>
+      </li>
     </>
   );
 }

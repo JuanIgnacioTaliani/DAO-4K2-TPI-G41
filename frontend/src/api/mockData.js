@@ -248,8 +248,8 @@ export const mockAlquileres = [
     fecha_inicio: "2025-11-10",
     fecha_fin: "2025-11-15",
     costo_base: "37500.00",
-    costo_total: "37500.00",
-    estado: "FINALIZADO",
+    costo_total: "50000.00", // Incluye multas
+    estado: "FINALIZADO", // Este valor se ignora, se calcula dinámicamente
     observaciones: "Cliente dejó el vehículo en perfectas condiciones",
   },
   {
@@ -259,10 +259,10 @@ export const mockAlquileres = [
     id_empleado: 2,
     id_reserva: null,
     fecha_inicio: "2025-11-14",
-    fecha_fin: "2025-11-20",
+    fecha_fin: "2025-11-22",
     costo_base: "30000.00",
-    costo_total: "32500.00",
-    estado: "EN_CURSO",
+    costo_total: "48500.00", // Incluye multas
+    estado: "EN_CURSO", // Este valor se ignora, se calcula dinámicamente
     observaciones: "Incluye seguro adicional - $2500",
   },
   {
@@ -275,7 +275,7 @@ export const mockAlquileres = [
     fecha_fin: "2025-11-08",
     costo_base: "15000.00",
     costo_total: "15000.00",
-    estado: "FINALIZADO",
+    estado: "FINALIZADO", // Este valor se ignora, se calcula dinámicamente
     observaciones: null,
   },
   {
@@ -284,12 +284,25 @@ export const mockAlquileres = [
     id_vehiculo: 2,
     id_empleado: 3,
     id_reserva: null,
-    fecha_inicio: "2025-11-12",
-    fecha_fin: "2025-11-14",
-    costo_base: "7000.00",
-    costo_total: "7000.00",
-    estado: "CANCELADO",
-    observaciones: "Cancelado por el cliente con 24hs de anticipación",
+    fecha_inicio: "2025-11-25",
+    fecha_fin: "2025-11-30",
+    costo_base: "17500.00",
+    costo_total: "17500.00",
+    estado: "PENDIENTE", // Este valor se ignora, se calcula dinámicamente
+    observaciones: "Alquiler programado para fin de mes",
+  },
+  {
+    id_alquiler: 5,
+    id_cliente: 1,
+    id_vehiculo: 5,
+    id_empleado: 2,
+    id_reserva: null,
+    fecha_inicio: "2025-12-01",
+    fecha_fin: "2025-12-10",
+    costo_base: "108000.00",
+    costo_total: "108000.00",
+    estado: "PENDIENTE", // Este valor se ignora, se calcula dinámicamente
+    observaciones: "Alquiler vehículo premium para viaje de negocios",
   },
 ];
 
@@ -309,6 +322,22 @@ export const mockMultasDanios = [
     descripcion: "Rayón en puerta trasera derecha",
     monto: "15000.00",
     fecha_registro: "2025-11-18T11:20:00",
+  },
+  {
+    id_multa_danio: 3,
+    id_alquiler: 2,
+    tipo: "multa",
+    descripcion: "Estacionamiento en lugar prohibido",
+    monto: "3500.00",
+    fecha_registro: "2025-11-17T09:15:00",
+  },
+  {
+    id_multa_danio: 4,
+    id_alquiler: 1,
+    tipo: "retraso",
+    descripcion: "Devolución con 2 días de retraso",
+    monto: "7500.00",
+    fecha_registro: "2025-11-17T14:30:00",
   },
 ];
 
