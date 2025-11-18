@@ -26,10 +26,29 @@ export default function Clientes() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Filtros
+  const [showFilters, setShowFilters] = useState(false);
+  const [filtroNombre, setFiltroNombre] = useState("");
+  const [filtroApellido, setFiltroApellido] = useState("");
+  const [filtroDni, setFiltroDni] = useState("");
+  const [filtroTelefono, setFiltroTelefono] = useState("");
+  const [filtroEmail, setFiltroEmail] = useState("");
+  const [filtroDireccion, setFiltroDireccion] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState(""); // "" | "true" | "false"
+
   const loadClientes = async () => {
     try {
       setLoading(true);
-    const res = await getClientes();
+      const params = {};
+      if (filtroNombre) params.nombre = filtroNombre;
+      if (filtroApellido) params.apellido = filtroApellido;
+      if (filtroDni) params.dni = filtroDni;
+      if (filtroTelefono) params.telefono = filtroTelefono;
+      if (filtroEmail) params.email = filtroEmail;
+      if (filtroDireccion) params.direccion = filtroDireccion;
+      if (filtroEstado !== "") params.estado = filtroEstado === "true";
+
+      const res = await getClientes(params);
       setClientes(res.data);
     } catch (err) {
       console.error(err);
@@ -218,6 +237,112 @@ export default function Clientes() {
 
         {/* Listado */}
         <div className="col-lg-12 col-md-12">
+          {/* Panel de Filtros */}
+          <div className="card mb-3">
+            <div className="card-header">
+              <h3 className="card-title mb-0">
+                <button
+                  type="button"
+                  className="btn btn-tool"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
+                </button>
+                Filtros de búsqueda
+              </h3>
+            </div>
+            {showFilters && (
+              <div className="card-body">
+                <div className="row g-2">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Nombre</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroNombre}
+                      onChange={(e) => setFiltroNombre(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Apellido</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroApellido}
+                      onChange={(e) => setFiltroApellido(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">DNI</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroDni}
+                      onChange={(e) => setFiltroDni(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Teléfono</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroTelefono}
+                      onChange={(e) => setFiltroTelefono(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="row g-2 mt-2">
+                  <div className="col-md-4">
+                    <label className="form-label small mb-1">Email</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroEmail}
+                      onChange={(e) => setFiltroEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-5">
+                    <label className="form-label small mb-1">Dirección</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroDireccion}
+                      onChange={(e) => setFiltroDireccion(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Estado</label>
+                    <select
+                      className="form-control form-control-sm"
+                      value={filtroEstado}
+                      onChange={(e) => setFiltroEstado(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      <option value="true">Activo</option>
+                      <option value="false">Inactivo</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="d-flex gap-2 mt-3">
+                  <button type="button" className="btn btn-primary btn-sm" onClick={loadClientes}>
+                    <i className="fas fa-search mr-1"></i> Aplicar Filtros
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setFiltroNombre("");
+                      setFiltroApellido("");
+                      setFiltroDni("");
+                      setFiltroTelefono("");
+                      setFiltroEmail("");
+                      setFiltroDireccion("");
+                      setFiltroEstado("");
+                      setTimeout(() => loadClientes(), 0);
+                    }}
+                  >
+                    <i className="fas fa-eraser mr-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="card mb-4">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h3 className="card-title mb-0">Listado de clientes</h3>

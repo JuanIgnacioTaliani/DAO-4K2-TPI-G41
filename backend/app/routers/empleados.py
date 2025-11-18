@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..models import empleados as empleadoModel
@@ -30,8 +30,37 @@ def crear_empleado(empleado_in: empleadoSchema.EmpleadoCreate, db: Session = Dep
 
 
 @router.get("/", response_model=List[empleadoSchema.EmpleadoOut])
-def listar_empleados(db: Session = Depends(get_db)):
-    return db.query(empleadoModel.Empleado).all()
+def listar_empleados(
+    nombre: Optional[str] = None,
+    apellido: Optional[str] = None,
+    dni: Optional[str] = None,
+    legajo: Optional[str] = None,
+    email: Optional[str] = None,
+    telefono: Optional[str] = None,
+    rol: Optional[str] = None,
+    estado: Optional[bool] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(empleadoModel.Empleado)
+
+    if nombre:
+        query = query.filter(empleadoModel.Empleado.nombre.ilike(f"%{nombre}%"))
+    if apellido:
+        query = query.filter(empleadoModel.Empleado.apellido.ilike(f"%{apellido}%"))
+    if dni:
+        query = query.filter(empleadoModel.Empleado.dni.ilike(f"%{dni}%"))
+    if legajo:
+        query = query.filter(empleadoModel.Empleado.legajo.ilike(f"%{legajo}%"))
+    if email:
+        query = query.filter(empleadoModel.Empleado.email.ilike(f"%{email}%"))
+    if telefono:
+        query = query.filter(empleadoModel.Empleado.telefono.ilike(f"%{telefono}%"))
+    if rol:
+        query = query.filter(empleadoModel.Empleado.rol.ilike(f"%{rol}%"))
+    if estado is not None:
+        query = query.filter(empleadoModel.Empleado.estado == estado)
+
+    return query.all()
 
 
 @router.get("/{empleado_id}", response_model=empleadoSchema.EmpleadoOut)

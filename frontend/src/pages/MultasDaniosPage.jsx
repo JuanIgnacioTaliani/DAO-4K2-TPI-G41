@@ -28,11 +28,51 @@ export default function MultasDaniosPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Filter states
+  const [filtroAlquiler, setFiltroAlquiler] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState([]);
+  const [filtroMontoDesde, setFiltroMontoDesde] = useState("");
+  const [filtroMontoHasta, setFiltroMontoHasta] = useState("");
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState("");
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState("");
+  const [errorFiltro, setErrorFiltro] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
   const loadData = async () => {
     try {
       setLoading(true);
+      setErrorFiltro("");
+
+      // Validar rangos de filtros antes de hacer la llamada
+      if (filtroMontoDesde && filtroMontoHasta) {
+        const desde = parseFloat(filtroMontoDesde);
+        const hasta = parseFloat(filtroMontoHasta);
+        if (desde > hasta) {
+          setErrorFiltro("El monto desde no puede ser mayor al monto hasta");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (filtroFechaDesde && filtroFechaHasta) {
+        if (filtroFechaDesde > filtroFechaHasta) {
+          setErrorFiltro("La fecha desde no puede ser mayor a la fecha hasta");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Construir parámetros de filtros
+      const params = {};
+      if (filtroAlquiler) params.id_alquiler = filtroAlquiler;
+      if (filtroTipo.length > 0) params.tipo = filtroTipo;
+      if (filtroMontoDesde) params.monto_desde = filtroMontoDesde;
+      if (filtroMontoHasta) params.monto_hasta = filtroMontoHasta;
+      if (filtroFechaDesde) params.fecha_registro_desde = filtroFechaDesde;
+      if (filtroFechaHasta) params.fecha_registro_hasta = filtroFechaHasta;
+
       const [mdRes, aRes] = await Promise.all([
-        getMultasDanios(),
+        getMultasDanios(params),
         getAlquileres(),
       ]);
       setMultasDanios(mdRes.data);
@@ -118,6 +158,26 @@ export default function MultasDaniosPage() {
     setEditingId(null);
     setForm(emptyForm);
     setErrorMsg("");
+  };
+
+  const handleLimpiarFiltros = () => {
+    setFiltroAlquiler("");
+    setFiltroTipo([]);
+    setFiltroMontoDesde("");
+    setFiltroMontoHasta("");
+    setFiltroFechaDesde("");
+    setFiltroFechaHasta("");
+    setErrorFiltro("");
+  };
+
+  const handleTipoChange = (tipo) => {
+    setFiltroTipo((prev) => {
+      if (prev.includes(tipo)) {
+        return prev.filter((t) => t !== tipo);
+      } else {
+        return [...prev, tipo];
+      }
+    });
   };
 
   const handleDelete = async (id) => {
@@ -249,6 +309,141 @@ export default function MultasDaniosPage() {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+
+        {/* Panel de Filtros */}
+        <div className="col-lg-12 col-md-12">
+          <div className="card mb-4">
+            <div className="card-header">
+              <h3 className="card-title mb-0">
+                <button
+                  type="button"
+                  className="btn btn-tool"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
+                </button>
+                Filtros de búsqueda
+              </h3>
+            </div>
+            {showFilters && (
+              <div className="card-body">
+                <div className="row mb-2">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Alquiler</label>
+                    <select
+                      className="form-control form-control-sm"
+                      value={filtroAlquiler}
+                      onChange={(e) => setFiltroAlquiler(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {alquileres.map((a) => (
+                        <option key={a.id_alquiler} value={a.id_alquiler}>
+                          Alquiler #{a.id_alquiler} - {a.fecha_inicio}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Tipo</label>
+                    <div className="d-flex flex-wrap gap-2 mt-1">
+                      {["multa", "daño", "retraso", "otro"].map((tipo) => (
+                        <div key={tipo} className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={`tipo-${tipo}`}
+                            checked={filtroTipo.includes(tipo)}
+                            onChange={() => handleTipoChange(tipo)}
+                          />
+                          <label className="form-check-label small" htmlFor={`tipo-${tipo}`}>
+                            {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Monto Desde</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      step="0.01"
+                      min="0"
+                      value={filtroMontoDesde}
+                      onChange={(e) => setFiltroMontoDesde(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Monto Hasta</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      step="0.01"
+                      min="0"
+                      value={filtroMontoHasta}
+                      onChange={(e) => setFiltroMontoHasta(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="row mb-3">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Fecha Registro Desde</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filtroFechaDesde}
+                      onChange={(e) => setFiltroFechaDesde(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Fecha Registro Hasta</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filtroFechaHasta}
+                      onChange={(e) => setFiltroFechaHasta(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-md-6 d-flex align-items-end gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={loadData}
+                    >
+                      <i className="fas fa-search mr-1"></i> Aplicar Filtros
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        handleLimpiarFiltros();
+                        // Recargar sin filtros después de limpiar
+                        setTimeout(() => loadData(), 0);
+                      }}
+                    >
+                      <i className="fas fa-eraser mr-1"></i> Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                {errorFiltro && (
+                  <div className="alert alert-danger py-2 mb-0" role="alert">
+                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                    {errorFiltro}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

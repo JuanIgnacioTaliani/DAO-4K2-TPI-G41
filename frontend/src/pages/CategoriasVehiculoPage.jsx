@@ -22,11 +22,35 @@ export default function CategoriasVehiculoPage() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [errorFiltro, setErrorFiltro] = useState("");
+  // Filtros
+  const [showFilters, setShowFilters] = useState(false);
+  const [filtroNombre, setFiltroNombre] = useState("");
+  const [filtroDescripcion, setFiltroDescripcion] = useState("");
+  const [filtroTarifaDesde, setFiltroTarifaDesde] = useState("");
+  const [filtroTarifaHasta, setFiltroTarifaHasta] = useState("");
 
   const loadCategorias = async () => {
     try {
       setLoading(true);
-      const res = await getCategoriasVehiculo();
+      setErrorFiltro("");
+
+      if (filtroTarifaDesde && filtroTarifaHasta) {
+        const desde = parseFloat(filtroTarifaDesde);
+        const hasta = parseFloat(filtroTarifaHasta);
+        if (!isNaN(desde) && !isNaN(hasta) && desde > hasta) {
+          setErrorFiltro("La tarifa desde no puede ser mayor a la tarifa hasta");
+          setLoading(false);
+          return;
+        }
+      }
+      const params = {};
+      if (filtroNombre) params.nombre = filtroNombre;
+      if (filtroDescripcion) params.descripcion = filtroDescripcion;
+      if (filtroTarifaDesde) params.tarifa_desde = parseFloat(filtroTarifaDesde);
+      if (filtroTarifaHasta) params.tarifa_hasta = parseFloat(filtroTarifaHasta);
+
+      const res = await getCategoriasVehiculo(params);
       setCategorias(res.data);
     } catch (err) {
       console.error(err);
@@ -184,6 +208,79 @@ export default function CategoriasVehiculoPage() {
 
         {/* Listado */}
         <div className="col-lg-12 col-md-12">
+          {/* Panel de Filtros */}
+          <div className="card mb-3">
+            <div className="card-header">
+              <h3 className="card-title mb-0">
+                <button
+                  type="button"
+                  className="btn btn-tool"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
+                </button>
+                Filtros de búsqueda
+              </h3>
+            </div>
+            {showFilters && (
+              <div className="card-body">
+                <div className="row g-2">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Nombre</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroNombre}
+                      onChange={(e) => setFiltroNombre(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-5">
+                    <label className="form-label small mb-1">Descripción</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroDescripcion}
+                      onChange={(e) => setFiltroDescripcion(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">Tarifa desde</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroTarifaDesde}
+                      onChange={(e) => setFiltroTarifaDesde(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">Tarifa hasta</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroTarifaHasta}
+                      onChange={(e) => setFiltroTarifaHasta(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="d-flex gap-2 mt-3">
+                  <button type="button" className="btn btn-primary btn-sm" onClick={loadCategorias}>
+                    <i className="fas fa-search mr-1"></i> Aplicar Filtros
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setFiltroNombre("");
+                      setFiltroDescripcion("");
+                      setFiltroTarifaDesde("");
+                      setFiltroTarifaHasta("");
+                      setTimeout(() => loadCategorias(), 0);
+                    }}
+                  >
+                    <i className="fas fa-eraser mr-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="card mb-4">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h3 className="card-title mb-0">
@@ -201,6 +298,14 @@ export default function CategoriasVehiculoPage() {
               )}
             </div>
             <div className="card-body p-0">
+              {errorFiltro && (
+                <div className="p-3 pt-3">
+                  <div className="alert alert-danger py-2 mb-0" role="alert">
+                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                    {errorFiltro}
+                  </div>
+                </div>
+              )}
               {categorias.length === 0 && !loading ? (
                 <div className="p-3">
                   <div className="alert alert-info mb-0">

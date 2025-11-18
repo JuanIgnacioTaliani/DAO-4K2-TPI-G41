@@ -32,16 +32,35 @@ const Confirm = (
   _accionBoton2 = null,
   _tipo = 'warning'
 ) => {
-  if (ModalDialog_Show)
-    ModalDialog_Show(
-      _mensaje,
-      _titulo,
-      _boton1,
-      _boton2,
-      _accionBoton1,
-      _accionBoton2,
-      _tipo
-    );
+  return new Promise((resolve) => {
+    if (ModalDialog_Show) {
+      ModalDialog_Show(
+        _mensaje,
+        _titulo,
+        _boton1,
+        _boton2,
+        () => {
+          if (_accionBoton1) _accionBoton1();
+          resolve(true);
+        },
+        () => {
+          if (_accionBoton2) _accionBoton2();
+          resolve(false);
+        },
+        _tipo
+      );
+    } else {
+      resolve(false);
+    }
+  });
+};
+
+const success = (_mensaje, _titulo = "Éxito") => {
+  Alert(_mensaje, _titulo, "Aceptar", "", null, null, "success");
+};
+
+const error = (_mensaje, _titulo = "Error") => {
+  Alert(_mensaje, _titulo, "Aceptar", "", null, null, "danger");
 };
 
 
@@ -68,7 +87,7 @@ const subscribeShow = (_ModalDialog_Show) => {
 };
 
 
-const modalDialogService = { Alert, Confirm, BloquearPantalla, subscribeShow };
+const modalDialogService = { Alert, Confirm, success, error, BloquearPantalla, subscribeShow };
 
 
 export default modalDialogService;

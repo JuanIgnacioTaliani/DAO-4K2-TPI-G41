@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..models import categorias_vehiculo as categoriaModel
@@ -30,8 +30,25 @@ def crear_categoria(categoria_in: categoriaSchema.CategoriaVehiculoCreate, db: S
 
 
 @router.get("/", response_model=List[categoriaSchema.CategoriaVehiculoOut])
-def listar_categorias(db: Session = Depends(get_db)):
-    return db.query(categoriaModel.CategoriaVehiculo).all()
+def listar_categorias(
+    nombre: Optional[str] = None,
+    descripcion: Optional[str] = None,
+    tarifa_desde: Optional[float] = None,
+    tarifa_hasta: Optional[float] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(categoriaModel.CategoriaVehiculo)
+
+    if nombre:
+        query = query.filter(categoriaModel.CategoriaVehiculo.nombre.ilike(f"%{nombre}%"))
+    if descripcion:
+        query = query.filter(categoriaModel.CategoriaVehiculo.descripcion.ilike(f"%{descripcion}%"))
+    if tarifa_desde is not None:
+        query = query.filter(categoriaModel.CategoriaVehiculo.tarifa_diaria >= tarifa_desde)
+    if tarifa_hasta is not None:
+        query = query.filter(categoriaModel.CategoriaVehiculo.tarifa_diaria <= tarifa_hasta)
+
+    return query.all()
 
 
 @router.get("/{categoria_id}", response_model=categoriaSchema.CategoriaVehiculoOut)

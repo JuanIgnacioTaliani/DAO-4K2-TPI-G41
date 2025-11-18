@@ -34,4 +34,3 @@ class Vehiculo(Base):
 
     alquileres = relationship("Alquiler", back_populates="vehiculo")
     mantenimientos = relationship("Mantenimiento", back_populates="vehiculo")
-    reservas = relationship("Reserva", back_populates="vehiculo")

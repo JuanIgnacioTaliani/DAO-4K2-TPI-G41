@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -14,9 +14,48 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[multaDanioSchema.MultaDanioOut])
-def listar_multas_danios(db: Session = Depends(get_db)):
-    """Listar todas las multas y daños"""
-    return db.query(MultaDanio).all()
+def listar_multas_danios(
+    id_alquiler: Optional[int] = None,
+    # Accept both forms: ?tipo=val1&tipo=val2 and ?tipo[]=val1&tipo[]=val2
+    tipo: Optional[List[str]] = Query(None),
+    tipo_brackets: Optional[List[str]] = Query(None, alias="tipo[]"),
+    monto_desde: Optional[float] = None,
+    monto_hasta: Optional[float] = None,
+    fecha_registro_desde: Optional[datetime] = None,
+    fecha_registro_hasta: Optional[datetime] = None,
+    db: Session = Depends(get_db)
+):
+    """Listar todas las multas y daños con filtros opcionales"""
+    query = db.query(MultaDanio)
+    
+    # Filtrar por alquiler
+    if id_alquiler is not None:
+        query = query.filter(MultaDanio.id_alquiler == id_alquiler)
+    
+    # Filtrar por tipo (puede ser múltiple)
+    tipos = tipo or tipo_brackets or []
+    if tipos:
+        query = query.filter(MultaDanio.tipo.in_(tipos))
+    
+    # Filtrar por rango de monto
+    if monto_desde is not None:
+        query = query.filter(MultaDanio.monto >= monto_desde)
+    if monto_hasta is not None:
+        query = query.filter(MultaDanio.monto <= monto_hasta)
+    
+    # Filtrar por rango de fecha de registro
+    if fecha_registro_desde is not None:
+        query = query.filter(MultaDanio.fecha_registro >= fecha_registro_desde)
+    if fecha_registro_hasta is not None:
+        # Agregar 1 día para incluir el día completo
+        from datetime import timedelta
+        fecha_fin = fecha_registro_hasta + timedelta(days=1)
+        query = query.filter(MultaDanio.fecha_registro < fecha_fin)
+    
+    # Ordenar por fecha de registro descendente (más recientes primero)
+    query = query.order_by(MultaDanio.fecha_registro.desc())
+    
+    return query.all()
 
 
 @router.get("/alquiler/{id_alquiler}", response_model=List[multaDanioSchema.MultaDanioOut])

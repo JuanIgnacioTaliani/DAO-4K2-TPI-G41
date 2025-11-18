@@ -49,8 +49,8 @@ const mockApi = {
 };
 
 // ========== API EXPORTS ==========
-export const getEmpleados = () =>
-  USE_MOCK ? mockApi.getEmpleados() : api.get("/empleados/");
+export const getEmpleados = (params = {}) =>
+  USE_MOCK ? mockApi.getEmpleados() : api.get("/empleados/", { params });
 
 export const createEmpleado = (empleado) =>
   USE_MOCK ? mockApi.createEmpleado(empleado) : api.post("/empleados/", empleado);

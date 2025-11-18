@@ -12,9 +12,43 @@ const api = axios.create({
 let multasDaniosData = [...mockMultasDanios];
 
 const mockApi = {
-  getMultasDanios: async () => {
+  getMultasDanios: async (params = {}) => {
     await delay();
-    return { data: multasDaniosData };
+    let filtered = [...multasDaniosData];
+    
+    // Filtrar por id_alquiler
+    if (params.id_alquiler) {
+      filtered = filtered.filter(m => m.id_alquiler === parseInt(params.id_alquiler));
+    }
+    
+    // Filtrar por tipo (puede ser array)
+    if (params.tipo && params.tipo.length > 0) {
+      filtered = filtered.filter(m => params.tipo.includes(m.tipo));
+    }
+    
+    // Filtrar por rango de monto
+    if (params.monto_desde !== undefined) {
+      filtered = filtered.filter(m => parseFloat(m.monto) >= parseFloat(params.monto_desde));
+    }
+    if (params.monto_hasta !== undefined) {
+      filtered = filtered.filter(m => parseFloat(m.monto) <= parseFloat(params.monto_hasta));
+    }
+    
+    // Filtrar por rango de fecha de registro
+    if (params.fecha_registro_desde) {
+      const desde = new Date(params.fecha_registro_desde);
+      filtered = filtered.filter(m => new Date(m.fecha_registro) >= desde);
+    }
+    if (params.fecha_registro_hasta) {
+      const hasta = new Date(params.fecha_registro_hasta);
+      hasta.setHours(23, 59, 59, 999); // Incluir el día completo
+      filtered = filtered.filter(m => new Date(m.fecha_registro) <= hasta);
+    }
+    
+    // Ordenar por fecha de registro descendente
+    filtered.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro));
+    
+    return { data: filtered };
   },
 
   getMultasDaniosByAlquiler: async (idAlquiler) => {
@@ -59,8 +93,8 @@ const mockApi = {
 
 // ========== API EXPORTS ==========
 // GET /multas-danios/
-export const getMultasDanios = () =>
-  USE_MOCK ? mockApi.getMultasDanios() : api.get("/multas-danios/");
+export const getMultasDanios = (params = {}) =>
+  USE_MOCK ? mockApi.getMultasDanios(params) : api.get("/multas-danios/", { params });
 
 // GET /multas-danios/alquiler/{id_alquiler}
 export const getMultasDaniosByAlquiler = (idAlquiler) =>

@@ -31,12 +31,69 @@ export default function VehiculosPage() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [errorFiltro, setErrorFiltro] = useState("");
+  // Filtros
+  const [showFilters, setShowFilters] = useState(false);
+  const [filtroPatente, setFiltroPatente] = useState("");
+  const [filtroMarca, setFiltroMarca] = useState("");
+  const [filtroModelo, setFiltroModelo] = useState("");
+  const [filtroAnioDesde, setFiltroAnioDesde] = useState("");
+  const [filtroAnioHasta, setFiltroAnioHasta] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroKmDesde, setFiltroKmDesde] = useState("");
+  const [filtroKmHasta, setFiltroKmHasta] = useState("");
+  const [filtroFumDesde, setFiltroFumDesde] = useState(""); // fecha_ultimo_mantenimiento_desde
+  const [filtroFumHasta, setFiltroFumHasta] = useState(""); // fecha_ultimo_mantenimiento_hasta
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setErrorFiltro("");
+
+      // Validaciones de rangos
+      if (filtroAnioDesde && filtroAnioHasta) {
+        const desde = parseInt(filtroAnioDesde, 10);
+        const hasta = parseInt(filtroAnioHasta, 10);
+        if (!isNaN(desde) && !isNaN(hasta) && desde > hasta) {
+          setErrorFiltro("El año desde no puede ser mayor al año hasta");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (filtroKmDesde && filtroKmHasta) {
+        const desdeKm = parseInt(filtroKmDesde, 10);
+        const hastaKm = parseInt(filtroKmHasta, 10);
+        if (!isNaN(desdeKm) && !isNaN(hastaKm) && desdeKm > hastaKm) {
+          setErrorFiltro("El KM desde no puede ser mayor al KM hasta");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (filtroFumDesde && filtroFumHasta) {
+        if (filtroFumDesde > filtroFumHasta) {
+          setErrorFiltro("La fecha de último mantenimiento desde no puede ser mayor a la fecha hasta");
+          setLoading(false);
+          return;
+        }
+      }
+      const params = {};
+      if (filtroPatente) params.patente = filtroPatente;
+      if (filtroMarca) params.marca = filtroMarca;
+      if (filtroModelo) params.modelo = filtroModelo;
+      if (filtroAnioDesde) params.anio_desde = parseInt(filtroAnioDesde, 10);
+      if (filtroAnioHasta) params.anio_hasta = parseInt(filtroAnioHasta, 10);
+      if (filtroCategoria) params.id_categoria = parseInt(filtroCategoria, 10);
+      if (filtroEstado) params.id_estado = parseInt(filtroEstado, 10);
+      if (filtroKmDesde) params.km_desde = parseInt(filtroKmDesde, 10);
+      if (filtroKmHasta) params.km_hasta = parseInt(filtroKmHasta, 10);
+      if (filtroFumDesde) params.fecha_ultimo_mantenimiento_desde = filtroFumDesde;
+      if (filtroFumHasta) params.fecha_ultimo_mantenimiento_hasta = filtroFumHasta;
+
       const [vRes, cRes, eRes] = await Promise.all([
-        getVehiculos(),
+        getVehiculos(params),
         getCategoriasVehiculo(),
         getEstadosVehiculo(),
       ]);
@@ -285,6 +342,164 @@ export default function VehiculosPage() {
 
         {/* Listado */}
         <div className="col-lg-12 col-md-12">
+          {/* Panel de Filtros */}
+          <div className="card mb-3">
+            <div className="card-header">
+              <h3 className="card-title mb-0">
+                <button
+                  type="button"
+                  className="btn btn-tool"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
+                </button>
+                Filtros de búsqueda
+              </h3>
+            </div>
+            {showFilters && (
+              <div className="card-body">
+                <div className="row g-2">
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">Patente</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroPatente}
+                      onChange={(e) => setFiltroPatente(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Marca</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroMarca}
+                      onChange={(e) => setFiltroMarca(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Modelo</label>
+                    <input
+                      className="form-control form-control-sm"
+                      value={filtroModelo}
+                      onChange={(e) => setFiltroModelo(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">Año desde</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroAnioDesde}
+                      onChange={(e) => setFiltroAnioDesde(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">Año hasta</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroAnioHasta}
+                      onChange={(e) => setFiltroAnioHasta(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="row g-2 mt-2">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Categoría</label>
+                    <select
+                      className="form-control form-control-sm"
+                      value={filtroCategoria}
+                      onChange={(e) => setFiltroCategoria(e.target.value)}
+                    >
+                      <option value="">Todas</option>
+                      {categorias.map((c) => (
+                        <option key={c.id_categoria} value={c.id_categoria}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Estado</label>
+                    <select
+                      className="form-control form-control-sm"
+                      value={filtroEstado}
+                      onChange={(e) => setFiltroEstado(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {estados.map((e) => (
+                        <option key={e.id_estado} value={e.id_estado}>
+                          {e.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">KM desde</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroKmDesde}
+                      onChange={(e) => setFiltroKmDesde(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small mb-1">KM hasta</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      value={filtroKmHasta}
+                      onChange={(e) => setFiltroKmHasta(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="row g-2 mt-2">
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Últ. mant. desde</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filtroFumDesde}
+                      onChange={(e) => setFiltroFumDesde(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small mb-1">Últ. mant. hasta</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filtroFumHasta}
+                      onChange={(e) => setFiltroFumHasta(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6 d-flex align-items-end gap-2">
+                    <button type="button" className="btn btn-primary btn-sm" onClick={loadData}>
+                      <i className="fas fa-search mr-1"></i> Aplicar Filtros
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setFiltroPatente("");
+                        setFiltroMarca("");
+                        setFiltroModelo("");
+                        setFiltroAnioDesde("");
+                        setFiltroAnioHasta("");
+                        setFiltroCategoria("");
+                        setFiltroEstado("");
+                        setFiltroKmDesde("");
+                        setFiltroKmHasta("");
+                        setFiltroFumDesde("");
+                        setFiltroFumHasta("");
+                        setTimeout(() => loadData(), 0);
+                      }}
+                    >
+                      <i className="fas fa-eraser mr-1"></i> Limpiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="card mb-4">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h3 className="card-title mb-0">Listado de Vehiculos</h3>
@@ -300,6 +515,14 @@ export default function VehiculosPage() {
               )}
             </div>
             <div className="card-body p-0">
+              {errorFiltro && (
+                <div className="p-3 pt-3">
+                  <div className="alert alert-danger py-2 mb-0" role="alert">
+                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                    {errorFiltro}
+                  </div>
+                </div>
+              )}
               {vehiculos.length === 0 && !loading ? (
                 <div className="p-3">
                   <div className="alert alert-info mb-0">

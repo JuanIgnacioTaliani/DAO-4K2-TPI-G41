@@ -18,7 +18,6 @@ from app.models import (
     CategoriaVehiculo,
     EstadoVehiculo,
     Vehiculo,
-    Reserva,
     Alquiler,
     MultaDanio,
     Mantenimiento,
@@ -34,7 +33,6 @@ def clear_database():
         db.query(MultaDanio).delete()
         db.query(Mantenimiento).delete()
         db.query(Alquiler).delete()
-        db.query(Reserva).delete()
         db.query(Vehiculo).delete()
         db.query(EstadoVehiculo).delete()
         db.query(CategoriaVehiculo).delete()
@@ -235,11 +233,6 @@ def seed_estados_vehiculo():
             ),
             EstadoVehiculo(
                 id_estado=4,
-                nombre="Reservado",
-                descripcion="Vehículo con reserva confirmada",
-            ),
-            EstadoVehiculo(
-                id_estado=5,
                 nombre="Fuera de Servicio",
                 descripcion="Vehículo no operativo",
             ),
@@ -339,42 +332,6 @@ def seed_vehiculos():
         db.close()
 
 
-def seed_reservas():
-    """Poblar tabla de reservas"""
-    print("\n📅 Cargando reservas...")
-    db = SessionLocal()
-    try:
-        reservas = [
-            Reserva(
-                id_reserva=1,
-                id_cliente=1,
-                id_vehiculo=5,
-                fecha_inicio=datetime.strptime("2025-11-25", "%Y-%m-%d").date(),
-                fecha_fin=datetime.strptime("2025-11-30", "%Y-%m-%d").date(),
-                estado="CONFIRMADA",
-                monto_senia=Decimal("6000.00"),
-                fecha_creacion=datetime.strptime("2025-11-10T10:30:00", "%Y-%m-%dT%H:%M:%S"),
-            ),
-            Reserva(
-                id_reserva=2,
-                id_cliente=2,
-                id_vehiculo=2,
-                fecha_inicio=datetime.strptime("2025-12-01", "%Y-%m-%d").date(),
-                fecha_fin=datetime.strptime("2025-12-05", "%Y-%m-%d").date(),
-                estado="PENDIENTE",
-                monto_senia=Decimal("2000.00"),
-                fecha_creacion=datetime.strptime("2025-11-12T14:15:00", "%Y-%m-%dT%H:%M:%S"),
-            ),
-        ]
-        db.bulk_save_objects(reservas)
-        db.commit()
-        print(f"✅ {len(reservas)} reservas cargadas")
-    except Exception as e:
-        db.rollback()
-        print(f"❌ Error al cargar reservas: {e}")
-        raise
-    finally:
-        db.close()
 
 
 def seed_alquileres():
@@ -573,7 +530,6 @@ def main():
         seed_categorias_vehiculo()
         seed_estados_vehiculo()
         seed_vehiculos()
-        seed_reservas()
         seed_alquileres()
         seed_multas_danios()
         seed_mantenimientos()
@@ -585,9 +541,8 @@ def main():
         print("   • 4 Clientes")
         print("   • 4 Empleados")
         print("   • 4 Categorías de vehículos")
-        print("   • 5 Estados de vehículos")
+        print("   • 4 Estados de vehículos")
         print("   • 6 Vehículos")
-        print("   • 2 Reservas")
         print("   • 5 Alquileres")
         print("   • 4 Multas/Daños")
         print("   • 2 Mantenimientos")

@@ -25,5 +25,5 @@ class Empleado(Base):
     rol = Column(String(50))
     estado = Column(Boolean, default=True)
 
-    alquileres = relationship("Alquiler", back_populates="empleado")
+    alquileres = relationship("Alquiler", back_populates="empleado", foreign_keys="Alquiler.id_empleado")
     mantenimientos = relationship("Mantenimiento", back_populates="empleado")

@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..models import clientes as clienteModel
@@ -23,8 +23,34 @@ def crear_cliente(cliente_in: clienteSchema.ClienteCreate, db: Session = Depends
 
 
 @router.get("/", response_model=List[clienteSchema.ClienteOut])
-def listar_clientes(db: Session = Depends(get_db)):
-    return db.query(clienteModel.Cliente).all()
+def listar_clientes(
+    nombre: Optional[str] = None,
+    apellido: Optional[str] = None,
+    dni: Optional[str] = None,
+    telefono: Optional[str] = None,
+    email: Optional[str] = None,
+    direccion: Optional[str] = None,
+    estado: Optional[bool] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(clienteModel.Cliente)
+
+    if nombre:
+        query = query.filter(clienteModel.Cliente.nombre.ilike(f"%{nombre}%"))
+    if apellido:
+        query = query.filter(clienteModel.Cliente.apellido.ilike(f"%{apellido}%"))
+    if dni:
+        query = query.filter(clienteModel.Cliente.dni.ilike(f"%{dni}%"))
+    if telefono:
+        query = query.filter(clienteModel.Cliente.telefono.ilike(f"%{telefono}%"))
+    if email:
+        query = query.filter(clienteModel.Cliente.email.ilike(f"%{email}%"))
+    if direccion:
+        query = query.filter(clienteModel.Cliente.direccion.ilike(f"%{direccion}%"))
+    if estado is not None:
+        query = query.filter(clienteModel.Cliente.estado == estado)
+
+    return query.all()
 
 
 @router.get("/{cliente_id}", response_model=clienteSchema.ClienteOut)

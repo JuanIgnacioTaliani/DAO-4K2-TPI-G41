@@ -50,8 +50,8 @@ const mockApi = {
 };
 
 // ========== API EXPORTS ==========
-export const getCategoriasVehiculo = () =>
-  USE_MOCK ? mockApi.getCategoriasVehiculo() : api.get("/categorias-vehiculo/");
+export const getCategoriasVehiculo = (params = {}) =>
+  USE_MOCK ? mockApi.getCategoriasVehiculo() : api.get("/categorias-vehiculo/", { params });
 
 export const createCategoriaVehiculo = (categoria) =>
   USE_MOCK
