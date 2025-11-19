@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import date, datetime
 
@@ -98,9 +99,35 @@ def eliminar_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
     vehiculo = db.query(vehiculoModel.Vehiculo).get(vehiculo_id)
     if not vehiculo:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    # Comprobar asociaciones: alquileres o mantenimientos
+    alquiler_existente = (
+        db.query(Alquiler)
+        .filter(Alquiler.id_vehiculo == vehiculo_id)
+        .first()
+    )
 
-    db.delete(vehiculo)
-    db.commit()
+    mantenimiento_existente = (
+        db.query(Mantenimiento)
+        .filter(Mantenimiento.id_vehiculo == vehiculo_id)
+        .first()
+    )
+
+    if alquiler_existente or mantenimiento_existente:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar el vehículo porque tiene alquileres o mantenimientos asociados",
+        )
+
+    try:
+        db.delete(vehiculo)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar el vehículo porque está asociado a uno o más registros (p. ej. alquileres/mantenimientos).",
+        )
+
     return None
 
 
