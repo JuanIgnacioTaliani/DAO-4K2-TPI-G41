@@ -8,18 +8,16 @@ Este proyecto incluye un sistema de datos mockeados que permite desarrollar y pr
 
 ### Activar/Desactivar Mock
 
-En cada archivo API (`src/api/*.js`), encontrarás esta variable al inicio:
+En .env se debe cambiar la variable VITE_USE_MOCK:
 
 ```javascript
-const USE_MOCK = true; // Cambia a false para usar la API real
+VITE_USE_MOCK = true; // Cambia a false para usar la API real
 ```
 
 - **`USE_MOCK = true`**: Usa datos simulados en memoria
 - **`USE_MOCK = false`**: Conecta con el backend real en `http://localhost:8000`
 
-### Archivos Modificados
-
-Todos los archivos API ahora soportan modo mock:
+### Archivos API que ahora soportan modo mock:
 
 - ✅ `alquileresApi.js`
 - ✅ `clientesApi.js`
