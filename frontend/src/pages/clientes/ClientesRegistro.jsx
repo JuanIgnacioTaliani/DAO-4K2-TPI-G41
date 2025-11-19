@@ -28,9 +28,12 @@ export default function ClientesRegistro({
             </div>
             <div className="col-sm-8 col-md-6">
               <input
-                {...register("nombre", { required: true })}
+                {...register("nombre", { required: "El nombre es obligatorio" })}
                 className="form-control"
               />
+              {errors.nombre && (
+                <div className="text-danger small mt-1">{errors.nombre.message}</div>
+              )}
             </div>
           </div>
 
@@ -41,9 +44,12 @@ export default function ClientesRegistro({
             </div>
             <div className="col-sm-8 col-md-6">
               <input 
-                {...register("apellido", { required: true })}
+                {...register("apellido", { required: "El apellido es obligatorio" })}
                 className="form-control"
               />
+              {errors.apellido && (
+                <div className="text-danger small mt-1">{errors.apellido.message}</div>
+              )}
             </div>
           </div>
 
@@ -54,9 +60,12 @@ export default function ClientesRegistro({
             </div>
             <div className="col-sm-8 col-md-6">
               <input 
-                {...register("dni", { required: true })}
+                {...register("dni", { required: "El DNI es obligatorio" })}
                 className="form-control"
               />
+              {errors.dni && (
+                <div className="text-danger small mt-1">{errors.dni.message}</div>
+              )}
             </div>
           </div>
 
@@ -66,7 +75,10 @@ export default function ClientesRegistro({
               <label>Teléfono:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <input {...register("telefono")} className="form-control" />
+              <input {...register("telefono", { required: "El teléfono es obligatorio" })} className="form-control" />
+              {errors.telefono && (
+                <div className="text-danger small mt-1">{errors.telefono.message}</div>
+              )}
             </div>
           </div>
 
@@ -77,10 +89,19 @@ export default function ClientesRegistro({
             </div>
             <div className="col-sm-8 col-md-6">
               <input 
-                {...register("email")}
+                {...register("email", {
+                  required: "El email es obligatorio",
+                  pattern: {
+                    value: /^[^@\s]+@[^@\s]+\.[^@\s]+$/,
+                    message: "Debe ingresar un email válido"
+                  }
+                })}
                 type="email"
                 className="form-control"
               />
+              {errors.email && (
+                <div className="text-danger small mt-1">{errors.email.message}</div>
+              )}
             </div>
           </div>
 
@@ -91,9 +112,12 @@ export default function ClientesRegistro({
             </div>
             <div className="col-sm-8 col-md-6">
               <input 
-                {...register("direccion")}
+                {...register("direccion", { required: "La dirección es obligatoria" })}
                 className="form-control"
               />
+              {errors.direccion && (
+                <div className="text-danger small mt-1">{errors.direccion.message}</div>
+              )}
             </div>
           </div>
 

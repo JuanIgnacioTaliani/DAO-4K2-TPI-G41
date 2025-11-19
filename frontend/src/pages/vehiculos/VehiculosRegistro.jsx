@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { mockCategoriasVehiculo, mockEstadosVehiculo } from "../../api/mockData";
 
 export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) {
-  const { register, handleSubmit } = useForm({ values: Item });
+  const { register, handleSubmit, formState: { errors } } = useForm({ values: Item });
   const onSubmit = (data) => Grabar(data);
 
   return (
@@ -17,6 +17,9 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <input {...register("patente", { required: true })} className="form-control" />
+                          {errors.patente && (
+                            <span className="text-danger">La patente es requerida</span>
+                          )}
             </div>
           </div>
 
@@ -26,6 +29,9 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <input {...register("marca")} className="form-control" />
+                          {errors.marca && (
+                            <span className="text-danger">La marca es requerida</span>
+                          )}
             </div>
           </div>
 
@@ -35,6 +41,9 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <input {...register("modelo")} className="form-control" />
+                          {errors.modelo && (
+                            <span className="text-danger">El modelo es requerido</span>
+                          )}
             </div>
           </div>
 
@@ -44,6 +53,9 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <input type="number" {...register("anio")} className="form-control" />
+                          {errors.anio && (
+                            <span className="text-danger">El año es requerido</span>
+                          )}
             </div>
           </div>
 
@@ -52,14 +64,17 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
               <label>Categoría:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <select {...register("id_categoria")} className="form-control">
-                <option value="">-- seleccione --</option>
+              <select {...register("id_categoria", { required: true, validate: value => value !== "" })} className="form-control">
+                <option value="" disabled selected>-- seleccione --</option>
                 {mockCategoriasVehiculo.map((c) => (
                   <option key={c.id_categoria} value={c.id_categoria}>
                     {c.nombre}
                   </option>
                 ))}
               </select>
+              {errors.id_categoria && (
+                <span className="text-danger">La categoría es requerida</span>
+              )}
             </div>
           </div>
 
@@ -68,14 +83,17 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
               <label>Estado:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <select {...register("id_estado")} className="form-control">
-                <option value="">-- seleccione --</option>
+              <select {...register("id_estado", { required: true, validate: value => value !== "" })} className="form-control">
+                <option value="" disabled selected>-- seleccione --</option>
                 {mockEstadosVehiculo.map((s) => (
                   <option key={s.id_estado} value={s.id_estado}>
                     {s.nombre}
                   </option>
                 ))}
               </select>
+              {errors.id_estado && (
+                <span className="text-danger">El estado es requerido</span>
+              )}
             </div>
           </div>
 
@@ -84,7 +102,7 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
               <label>KM actual:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <input type="number" {...register("km_actual")} className="form-control" />
+              <input type="number" {...register("km_actual")} className="form-control"/>
             </div>
           </div>
 

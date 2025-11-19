@@ -31,6 +31,9 @@ export default function EmpleadosRegistro({
                 {...register("nombre", { required: true })}
                 className="form-control"
               />
+                {errors.nombre && (
+                  <span className="text-danger">El nombre es requerido</span>
+                )}
             </div>
           </div>
 
@@ -44,6 +47,9 @@ export default function EmpleadosRegistro({
                 {...register("apellido", { required: true })}
                 className="form-control"
               />
+                {errors.apellido && (
+                  <span className="text-danger">El apellido es requerido</span>
+                )}
             </div>
           </div>
 
@@ -57,6 +63,9 @@ export default function EmpleadosRegistro({
                 {...register("dni", { required: true })}
                 className="form-control"
               />
+                {errors.dni && (
+                  <span className="text-danger">El DNI es requerido</span>
+                )}
             </div>
           </div>
 
@@ -66,7 +75,10 @@ export default function EmpleadosRegistro({
               <label>Teléfono:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <input {...register("telefono")} className="form-control" />
+                <input {...register("telefono", { required: true })} className="form-control" />
+                {errors.telefono && (
+                  <span className="text-danger">El teléfono es requerido</span>
+                )}
             </div>
           </div>
 
@@ -76,11 +88,17 @@ export default function EmpleadosRegistro({
               <label>Email:</label>
             </div>
             <div className="col-sm-8 col-md-6">
-              <input 
-                {...register("email")}
-                type="email"
-                className="form-control"
-              />
+                <input 
+                  {...register("email", { required: true, pattern: { value: /^[^@\s]+@[^@\s]+\.[^@\s]+$/, message: "Formato de email inválido" } })}
+                  type="email"
+                  className="form-control"
+                />
+                {errors.email?.type === "required" && (
+                  <span className="text-danger">El email es requerido</span>
+                )}
+                {errors.email?.type === "pattern" && (
+                  <span className="text-danger">{errors.email.message}</span>
+                )}
             </div>
           </div>
 

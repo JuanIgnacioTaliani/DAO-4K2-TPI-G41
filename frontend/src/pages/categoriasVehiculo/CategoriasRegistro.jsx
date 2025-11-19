@@ -2,7 +2,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 
 export default function CategoriasRegistro({ AccionABMC, Item, Grabar, Volver }) {
-	const { register, handleSubmit } = useForm({ values: Item });
+	 const { register, handleSubmit, formState: { errors } } = useForm({ values: Item });
 	const onSubmit = (data) => Grabar(data);
 
 	const formatPeso = (value) => {
@@ -24,6 +24,9 @@ export default function CategoriasRegistro({ AccionABMC, Item, Grabar, Volver })
 						</div>
 						<div className="col-sm-8 col-md-6">
 							<input {...register("nombre", { required: true })} className="form-control" />
+													{errors.nombre && (
+														<span className="text-danger">El nombre es requerido</span>
+													)}
 						</div>
 					</div>
 
@@ -50,7 +53,12 @@ export default function CategoriasRegistro({ AccionABMC, Item, Grabar, Volver })
 									readOnly
 								/>
 							) : (
-								<input {...register("tarifa_diaria", { required: true })} className="form-control" />
+								<>
+									<input {...register("tarifa_diaria", { required: true })} className="form-control" />
+									{errors.tarifa_diaria && (
+										<span className="text-danger">La tarifa diaria es requerida</span>
+									)}
+								</>
 							)}
 						</div>
 					</div>
