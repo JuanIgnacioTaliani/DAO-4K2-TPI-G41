@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 
 from ..database import get_db
 from ..models import empleados as empleadoModel
+from ..models import Alquiler
 from ..schemas import empleados as empleadoSchema
 
 router = APIRouter(prefix="/empleados", tags=["empleados"])
@@ -91,7 +93,27 @@ def eliminar_empleado(empleado_id: int, db: Session = Depends(get_db)):
     empleado = db.query(empleadoModel.Empleado).get(empleado_id)
     if not empleado:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
+    # ¿Tiene alquileres asociados (como empleado que atendió o que canceló)?
+    alquiler_existente = (
+        db.query(Alquiler)
+        .filter((Alquiler.id_empleado == empleado_id) | (Alquiler.id_empleado_cancelador == empleado_id))
+        .first()
+    )
 
-    db.delete(empleado)
-    db.commit()
+    if alquiler_existente:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar el empleado porque tiene alquileres asociados",
+        )
+
+    try:
+        db.delete(empleado)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar el empleado porque está asociado a uno o más registros (p. ej. alquileres).",
+        )
+
     return None

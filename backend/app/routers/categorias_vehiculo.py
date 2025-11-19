@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 
 from ..database import get_db
 from ..models import categorias_vehiculo as categoriaModel
+from ..models import Vehiculo
 from ..schemas import categorias_vehiculo as categoriaSchema
 
 router = APIRouter(
@@ -83,9 +85,27 @@ def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
     categoria = db.query(categoriaModel.CategoriaVehiculo).get(categoria_id)
     if not categoria:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    # Validar que no haya vehículos que usen esta categoría
+    vehiculo_existente = (
+        db.query(Vehiculo)
+        .filter(Vehiculo.id_categoria == categoria_id)
+        .first()
+    )
 
-    # ojo: más adelante podés validar que no haya vehículos usando esta categoría
+    if vehiculo_existente:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar la categoría porque hay vehículos asociados",
+        )
 
-    db.delete(categoria)
-    db.commit()
+    try:
+        db.delete(categoria)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar la categoría porque está asociada a uno o más registros (p. ej. vehículos).",
+        )
+
     return None

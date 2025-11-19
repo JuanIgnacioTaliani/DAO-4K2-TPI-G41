@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models import clientes as clienteModel
 from ..schemas import clientes as clienteSchema
+from ..models.alquileres import Alquiler
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
@@ -78,10 +79,22 @@ def actualizar_cliente(cliente_id: int, cliente_in: clienteSchema.ClienteUpdate,
 
 @router.delete("/{cliente_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
-    cliente = db.query(clienteModel.Cliente).get(cliente_id)
+    cliente = db.get(clienteModel.Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
+    # ¿Tiene alquileres asociados?
+    alquiler_existente = (
+        db.query(Alquiler)
+        .filter(Alquiler.id_cliente == cliente_id)
+        .first()
+    )
+
+    if alquiler_existente:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar el cliente porque tiene alquileres asociados"
+        )
+
     db.delete(cliente)
     db.commit()
-    return None
