@@ -9,7 +9,7 @@ import {
   updateVehiculo,
   deleteVehiculo,
 } from "../api/vehiculosApi";
-import { getCategoriasVehiculo } from "../api/categoriasVehiculoApi";
+import { getCategorias } from "../api/categoriasVehiculoApi";
 import { getEstadosVehiculo } from "../api/estadosVehiculoApi";
 
 const emptyForm = {
@@ -94,7 +94,7 @@ export default function VehiculosPage() {
 
       const [vRes, cRes, eRes] = await Promise.all([
         getVehiculos(params),
-        getCategoriasVehiculo(),
+        getCategorias(),
         getEstadosVehiculo(),
       ]);
       setVehiculos(vRes.data);

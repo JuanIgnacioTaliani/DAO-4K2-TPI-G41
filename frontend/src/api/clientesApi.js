@@ -16,6 +16,17 @@ const mockApi = {
     await delay();
     return { data: clientesData };
   },
+  
+  getClienteById: async (id) => {
+    await delay();
+    const cliente = clientesData.find((c) => c.id_cliente === id);
+    if (!cliente) {
+      const err = new Error("Cliente no encontrado");
+      err.response = { data: { detail: "Cliente no encontrado" } };
+      throw err;
+    }
+    return { data: cliente };
+  },
 
   createCliente: async (cliente) => {
     await delay();
@@ -52,6 +63,10 @@ const mockApi = {
 // GET /clientes/
 export const getClientes = (params = {}) =>
   USE_MOCK ? mockApi.getClientes() : api.get("/clientes/", { params });
+
+// GET /clientes/
+export const getClienteById = (id) =>
+  USE_MOCK ? mockApi.getClienteById(id) : api.get(`/clientes/${id}`);
 
 // POST /clientes/
 export const createCliente = (cliente) =>

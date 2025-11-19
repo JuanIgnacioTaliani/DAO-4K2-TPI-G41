@@ -17,6 +17,17 @@ const mockApi = {
     return { data: empleadosData };
   },
 
+  getEmpleadoById: async (id) => {
+    await delay();
+    const empleado = empleadosData.find((e) => e.id_empleado === id);
+    if (!empleado) {
+      const err = new Error("Empleado no encontrado");
+      err.response = { data: { detail: "Empleado no encontrado" } };
+      throw err;
+    }
+    return { data: empleado };
+  },
+
   createEmpleado: async (empleado) => {
     await delay();
     const nuevoEmpleado = {
@@ -51,6 +62,9 @@ const mockApi = {
 // ========== API EXPORTS ==========
 export const getEmpleados = (params = {}) =>
   USE_MOCK ? mockApi.getEmpleados() : api.get("/empleados/", { params });
+
+export const getEmpleadoById = (id) =>
+  USE_MOCK ? mockApi.getEmpleadoById(id) : api.get(`/empleados/${id}`);
 
 export const createEmpleado = (empleado) =>
   USE_MOCK ? mockApi.createEmpleado(empleado) : api.post("/empleados/", empleado);

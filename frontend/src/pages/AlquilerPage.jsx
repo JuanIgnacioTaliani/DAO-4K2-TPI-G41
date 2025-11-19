@@ -16,7 +16,7 @@ import {
 import { getClientes } from "../api/clientesApi";
 import { getVehiculosConDisponibilidad } from "../api/vehiculosApi";
 import { getEmpleados } from "../api/empleadosApi";
-import { getCategoriasVehiculo } from "../api/categoriasVehiculoApi";
+import { getCategorias } from "../api/categoriasVehiculoApi";
 import { getMultasDaniosByAlquiler } from "../api/multasDaniosApi";
 
 const emptyForm = {
@@ -111,7 +111,7 @@ export default function AlquilerPage() {
         getClientes(),
         getVehiculosConDisponibilidad(),
         getEmpleados(),
-        getCategoriasVehiculo(),
+        getCategorias(),
       ]);
       setAlquileres(aRes.data);
       setClientes(cRes.data);

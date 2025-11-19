@@ -17,6 +17,17 @@ const mockApi = {
     return { data: vehiculosData };
   },
 
+  getVehiculoById: async (id) => {
+    await delay();
+    const veh = vehiculosData.find((v) => v.id_vehiculo === id);
+    if (!veh) {
+      const err = new Error("Vehículo no encontrado");
+      err.response = { data: { detail: "Vehículo no encontrado" } };
+      throw err;
+    }
+    return { data: veh };
+  },
+
   createVehiculo: async (vehiculo) => {
     await delay();
     const nuevoVehiculo = {
@@ -51,6 +62,9 @@ const mockApi = {
 // ========== API EXPORTS ==========
 export const getVehiculos = (params = {}) =>
   USE_MOCK ? mockApi.getVehiculos() : api.get("/vehiculos/", { params });
+
+export const getVehiculoById = (id) =>
+  USE_MOCK ? mockApi.getVehiculoById(id) : api.get(`/vehiculos/${id}`);
 
 export const getVehiculosConDisponibilidad = () =>
   api.get("/vehiculos/disponibilidad/all");

@@ -6,10 +6,10 @@ import Footer from "./pages/layouts/Footer";
 import { ContentWrapper } from "./pages/layouts/ContentWrapper";
 import { ModalDialog } from "./pages/layouts/ModalDialog";
 
-import ClientesPage from "./pages/ClientesPage";
-import EmpleadosPage from "./pages/EmpleadosPage";
-import VehiculosPage from "./pages/VehiculosPage";
-import CategoriasVehiculoPage from "./pages/CategoriasVehiculoPage";
+import Clientes from "./pages/clientes/Clientes";
+import Empleados from "./pages/empleados/Empleados";
+import Vehiculos from "./pages/vehiculos/Vehiculos";
+import CategoriasVehiculo from "./pages/categoriasVehiculo/CategoriasVehiculo";
 import AlquilerPage from "./pages/AlquilerPage";
 import MultasDaniosPage from "./pages/MultasDaniosPage";
 import { MantenimientoPage } from "./pages/MantenimientoPage";
@@ -36,12 +36,12 @@ export default function App() {
           <Route index element={<Navigate to="/clientes" replace />} />
 
           {/* rutas hijas, estas se renderizan dentro de <ContentWrapper> -> <Outlet> */}
-          <Route path="clientes" element={<ClientesPage />} />
-          <Route path="empleados" element={<EmpleadosPage />} />
-          <Route path="vehiculos" element={<VehiculosPage />} />
+          <Route path="clientes" element={<Clientes />} />
+          <Route path="empleados" element={<Empleados />} />
+          <Route path="vehiculos" element={<Vehiculos />} />
           <Route
             path="categorias-vehiculos"
-            element={<CategoriasVehiculoPage />}
+            element={<CategoriasVehiculo />}
           />
           <Route path="alquiler" element={<AlquilerPage />} />
           <Route path="multas-danios" element={<MultasDaniosPage />} />
