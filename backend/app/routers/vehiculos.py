@@ -33,8 +33,8 @@ def listar_vehiculos(
     modelo: Optional[str] = None,
     anio_desde: Optional[int] = None,
     anio_hasta: Optional[int] = None,
-    id_categoria: Optional[int] = None,
-    id_estado: Optional[int] = None,
+    categoria: Optional[int] = None,
+    estado: Optional[int] = None,
     km_desde: Optional[int] = None,
     km_hasta: Optional[int] = None,
     fecha_ultimo_mantenimiento_desde: Optional[date] = None,
@@ -53,10 +53,10 @@ def listar_vehiculos(
         query = query.filter(vehiculoModel.Vehiculo.anio >= anio_desde)
     if anio_hasta is not None:
         query = query.filter(vehiculoModel.Vehiculo.anio <= anio_hasta)
-    if id_categoria is not None:
-        query = query.filter(vehiculoModel.Vehiculo.id_categoria == id_categoria)
-    if id_estado is not None:
-        query = query.filter(vehiculoModel.Vehiculo.id_estado == id_estado)
+    if categoria is not None:
+        query = query.filter(vehiculoModel.Vehiculo.id_categoria == categoria)
+    if estado is not None:
+        query = query.filter(vehiculoModel.Vehiculo.id_estado == estado)
     if km_desde is not None:
         query = query.filter(vehiculoModel.Vehiculo.km_actual >= km_desde)
     if km_hasta is not None:

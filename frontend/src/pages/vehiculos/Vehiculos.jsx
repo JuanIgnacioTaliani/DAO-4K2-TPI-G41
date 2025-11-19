@@ -12,6 +12,8 @@ import {
   updateVehiculo,
   deleteVehiculo,
 } from "../../api/vehiculosApi";
+import { getCategorias } from "../../api/categoriasVehiculoApi";
+import { getEstadosVehiculo } from "../../api/estadosVehiculoApi";
 
 import modalDialogService from "../../api/modalDialog.service";
 
@@ -21,16 +23,40 @@ export default function Vehiculos() {
   useEffect(() => {
     setTitulo("Gestión de Vehículos");
     Buscar();
+    (async () => {
+      try {
+        const cat = await getCategorias();
+        const est = await getEstadosVehiculo();
+        setCategorias(cat.data ?? []);
+        setEstados(est.data ?? []);
+        
+      } catch (e) {
+        console.error("Error cargando Categorias o Estados", e);
+        setPermisos([]);
+        modalDialogService.Alert("No se pudieron cargar Categorias o Estados.");
+      }
+    })();
   }, [setTitulo]);
 
+  const TituloAccionABMC = {
+    A: "(Agregar)",
+    B: "(Eliminar)",
+    M: "(Modificar)",
+    C: "(Consultar)",
+    L: "(Listado)",
+  };
   const [AccionABMC, setAccionABMC] = useState("L");
 
   // filtros
+  //arrays de los select
+  const [Categorias, setCategorias] = useState([]);
+  const [Estados, setEstados] = useState([]);
+
   const [Patente, setPatente] = useState("");
   const [Marca, setMarca] = useState("");
   const [Modelo, setModelo] = useState("");
-  const [IdCategoria, setIdCategoria] = useState("");
-  const [IdEstado, setIdEstado] = useState("");
+  const [Categoria, setCategoria] = useState("");
+  const [Estado, setEstado] = useState("");
   const [AnioDesde, setAnioDesde] = useState("");
   const [AnioHasta, setAnioHasta] = useState("");
   const [KmDesde, setKmDesde] = useState("");
@@ -42,49 +68,75 @@ export default function Vehiculos() {
   const [Item, setItem] = useState(null);
 
   async function Buscar(override) {
-    // get all then apply filters client-side (mock doesn't filter)
-    const res = await getVehiculos();
-    let data = res.data;
+    let params = {};
 
-    const patente = override && Object.prototype.hasOwnProperty.call(override, "patente") ? override.patente : Patente;
-    const marca = override && Object.prototype.hasOwnProperty.call(override, "marca") ? override.marca : Marca;
-    const modelo = override && Object.prototype.hasOwnProperty.call(override, "modelo") ? override.modelo : Modelo;
-    const id_categoria = override && Object.prototype.hasOwnProperty.call(override, "id_categoria") ? override.id_categoria : IdCategoria;
-    const id_estado = override && Object.prototype.hasOwnProperty.call(override, "id_estado") ? override.id_estado : IdEstado;
-    const anio_desde = override && Object.prototype.hasOwnProperty.call(override, "anio_desde") ? override.anio_desde : AnioDesde;
-    const anio_hasta = override && Object.prototype.hasOwnProperty.call(override, "anio_hasta") ? override.anio_hasta : AnioHasta;
-    const km_desde = override && Object.prototype.hasOwnProperty.call(override, "km_desde") ? override.km_desde : KmDesde;
-    const km_hasta = override && Object.prototype.hasOwnProperty.call(override, "km_hasta") ? override.km_hasta : KmHasta;
-    const fum_desde = override && Object.prototype.hasOwnProperty.call(override, "fecha_ultimo_mantenimiento_desde") ? override.fecha_ultimo_mantenimiento_desde : FumDesde;
-    const fum_hasta = override && Object.prototype.hasOwnProperty.call(override, "fecha_ultimo_mantenimiento_hasta") ? override.fecha_ultimo_mantenimiento_hasta : FumHasta;
+    const patente =
+      override && Object.prototype.hasOwnProperty.call(override, "patente")
+        ? override.patente
+        : Patente;
+    const marca =
+      override && Object.prototype.hasOwnProperty.call(override, "marca")
+        ? override.marca
+        : Marca;
+    const modelo =
+      override && Object.prototype.hasOwnProperty.call(override, "modelo")
+        ? override.modelo
+        : Modelo;
+    const categoria =
+      override && Object.prototype.hasOwnProperty.call(override, "categoria")
+        ? override.categoria
+        : Categoria;
+    const estado =
+      override && Object.prototype.hasOwnProperty.call(override, "estado")
+        ? override.estado
+        : Estado;
+    const anio_desde =
+      override && Object.prototype.hasOwnProperty.call(override, "anio_desde")
+        ? override.anio_desde
+        : AnioDesde;
+    const anio_hasta =
+      override && Object.prototype.hasOwnProperty.call(override, "anio_hasta")
+        ? override.anio_hasta
+        : AnioHasta;
+    const km_desde =
+      override && Object.prototype.hasOwnProperty.call(override, "km_desde")
+        ? override.km_desde
+        : KmDesde;
+    const km_hasta =
+      override && Object.prototype.hasOwnProperty.call(override, "km_hasta")
+        ? override.km_hasta
+        : KmHasta;
+    const fum_desde =
+      override &&
+      Object.prototype.hasOwnProperty.call(
+        override,
+        "fecha_ultimo_mantenimiento_desde"
+      )
+        ? override.fecha_ultimo_mantenimiento_desde
+        : FumDesde;
+    const fum_hasta =
+      override &&
+      Object.prototype.hasOwnProperty.call(
+        override,
+        "fecha_ultimo_mantenimiento_hasta"
+      )
+        ? override.fecha_ultimo_mantenimiento_hasta
+        : FumHasta;
 
-    if (patente) data = data.filter((v) => v.patente.toLowerCase().includes(String(patente).toLowerCase()));
-    if (marca) data = data.filter((v) => v.marca.toLowerCase().includes(String(marca).toLowerCase()));
-    if (modelo) data = data.filter((v) => v.modelo.toLowerCase().includes(String(modelo).toLowerCase()));
-    if (id_categoria !== undefined && id_categoria !== "") data = data.filter((v) => String(v.id_categoria) === String(id_categoria));
-    if (id_estado !== undefined && id_estado !== "") data = data.filter((v) => String(v.id_estado) === String(id_estado));
-    if (anio_desde !== undefined && anio_desde !== "") {
-      const desde = parseInt(anio_desde, 10);
-      if (!Number.isNaN(desde)) data = data.filter((v) => Number(v.anio) >= desde);
-    }
-    if (anio_hasta !== undefined && anio_hasta !== "") {
-      const hasta = parseInt(anio_hasta, 10);
-      if (!Number.isNaN(hasta)) data = data.filter((v) => Number(v.anio) <= hasta);
-    }
-    if (km_desde !== undefined && km_desde !== "") {
-      const desdeKm = parseInt(km_desde, 10);
-      if (!Number.isNaN(desdeKm)) data = data.filter((v) => Number(v.km_actual) >= desdeKm);
-    }
-    if (km_hasta !== undefined && km_hasta !== "") {
-      const hastaKm = parseInt(km_hasta, 10);
-      if (!Number.isNaN(hastaKm)) data = data.filter((v) => Number(v.km_actual) <= hastaKm);
-    }
-    if (fum_desde) {
-      data = data.filter((v) => v.fecha_ultimo_mantenimiento && v.fecha_ultimo_mantenimiento >= fum_desde);
-    }
-    if (fum_hasta) {
-      data = data.filter((v) => v.fecha_ultimo_mantenimiento && v.fecha_ultimo_mantenimiento <= fum_hasta);
-    }
+    if (patente) params.patente = patente.toLowerCase();
+    if (marca) params.marca = marca.toLowerCase();
+    if (modelo) params.modelo = modelo.toLowerCase();
+    if (categoria !== undefined && categoria !== "") params.categoria = categoria;
+    if (estado !== undefined && estado !== "") params.estado = estado;
+    if (anio_desde !== undefined && anio_desde !== "") params.anio_desde = anio_desde;
+    if (anio_hasta !== undefined && anio_hasta !== "") params.anio_hasta = anio_hasta;
+    if (km_desde !== undefined && km_desde !== "") params.km_desde = km_desde;
+    if (km_hasta !== undefined && km_hasta !== "") params.km_hasta = km_hasta;
+    if (fum_desde) params.fum_desde = fum_desde;
+    if (fum_hasta) params.fum_hasta = fum_hasta;
+    
+    const res = await getVehiculos(params);
+    const data = res.data;
 
     setItems(data);
   }
@@ -126,7 +178,9 @@ export default function Vehiculos() {
           await Buscar();
           modalDialogService.Alert("Registro eliminado correctamente");
         } catch (err) {
-          modalDialogService.Alert(err?.response?.data?.detail ?? "Error al eliminar");
+          modalDialogService.Alert(
+            err?.response?.data?.detail ?? "Error al eliminar"
+          );
         }
       }
     );
@@ -140,14 +194,20 @@ export default function Vehiculos() {
         await updateVehiculo(data.id_vehiculo, data);
       }
     } catch (err) {
-      modalDialogService.Alert(err?.response?.data?.detail ?? "Error al grabar");
+      modalDialogService.Alert(
+        err?.response?.data?.detail ?? "Error al grabar"
+      );
       return;
     }
 
     await Buscar();
     Volver();
     setTimeout(() => {
-      modalDialogService.Alert(`Registro ${AccionABMC === "A" ? "agregado" : "modificado"} correctamente`);
+      modalDialogService.Alert(
+        `Registro ${
+          AccionABMC === "A" ? "agregado" : "modificado"
+        } correctamente`
+      );
     }, 0);
   };
 
@@ -164,10 +224,12 @@ export default function Vehiculos() {
             setMarca={setMarca}
             Modelo={Modelo}
             setModelo={setModelo}
-            IdCategoria={IdCategoria}
-            setIdCategoria={setIdCategoria}
-            IdEstado={IdEstado}
-            setIdEstado={setIdEstado}
+            Categorias={Categorias}
+            Categoria={Categoria}
+            setCategoria={setCategoria}
+            Estados={Estados}
+            Estado={Estado}
+            setEstado={setEstado}
             AnioDesde={AnioDesde}
             setAnioDesde={setAnioDesde}
             AnioHasta={AnioHasta}
@@ -194,14 +256,20 @@ export default function Vehiculos() {
             />
           ) : (
             <div className="alert alert-info mensajesAlert">
-              <i className="fa fa-exclamation-sign" /> No se encontraron vehículos.
+              <i className="fa fa-exclamation-sign" /> No se encontraron
+              vehículos.
             </div>
           )}
         </>
       )}
 
       {AccionABMC !== "L" && (
-        <VehiculosRegistro AccionABMC={AccionABMC} Item={Item} Grabar={Grabar} Volver={Volver} />
+        <VehiculosRegistro
+          AccionABMC={AccionABMC}
+          Item={Item}
+          Grabar={Grabar}
+          Volver={Volver}
+        />
       )}
     </div>
   );

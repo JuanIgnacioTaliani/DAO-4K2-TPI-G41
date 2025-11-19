@@ -10,6 +10,7 @@ import Clientes from "./pages/clientes/Clientes";
 import Empleados from "./pages/empleados/Empleados";
 import Vehiculos from "./pages/vehiculos/Vehiculos";
 import CategoriasVehiculo from "./pages/categoriasVehiculo/CategoriasVehiculo";
+import Alquileres from "./pages/alquileres/Alquileres";
 import AlquilerPage from "./pages/AlquilerPage";
 import MultasDaniosPage from "./pages/MultasDaniosPage";
 import { MantenimientoPage } from "./pages/MantenimientoPage";
@@ -44,6 +45,7 @@ export default function App() {
             element={<CategoriasVehiculo />}
           />
           <Route path="alquiler" element={<AlquilerPage />} />
+          <Route path="alquiler-new" element={<Alquileres />} />
           <Route path="multas-danios" element={<MultasDaniosPage />} />
           <Route path="mantenimientos" element={<MantenimientoPage />} />
 

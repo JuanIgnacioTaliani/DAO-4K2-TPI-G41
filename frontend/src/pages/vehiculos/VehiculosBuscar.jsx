@@ -1,8 +1,4 @@
 import { useState } from "react";
-import {
-  mockCategoriasVehiculo,
-  mockEstadosVehiculo,
-} from "../../api/mockData";
 
 export default function VehiculosBuscar({
   Patente,
@@ -11,10 +7,12 @@ export default function VehiculosBuscar({
   setMarca,
   Modelo,
   setModelo,
-  IdCategoria,
-  setIdCategoria,
-  IdEstado,
-  setIdEstado,
+  Categorias,
+  Categoria,
+  setCategoria,
+  Estados,
+  Estado,
+  setEstado,
   AnioDesde,
   setAnioDesde,
   AnioHasta,
@@ -36,32 +34,28 @@ export default function VehiculosBuscar({
     <div className="col-lg-12 col-md-12">
       <div className="card mb-3">
         <div className="card-header d-flex justify-content-between align-items-center">
-              <h3 className="card-title mb-0">
-                <button
-                  type="button"
-                  className="btn btn-tool"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
-                </button>
-                Filtros de búsqueda
-              </h3>
-              <div>
-                <button
-                    type="button"
-                    className="btn btn-primary mr-1"
-                    onClick={() => Buscar()}
-                >
-                    <i className="fa fa-search" /> Buscar
-                </button>
-                <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={Agregar}
-                >
-                    <i className="fa fa-plus" /> Agregar
-                </button>
-              </div>
+          <h3 className="card-title mb-0">
+            <button
+              type="button"
+              className="btn btn-tool"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <i className={`fas fa-${showFilters ? "minus" : "plus"}`}></i>
+            </button>
+            Filtros de búsqueda
+          </h3>
+          <div>
+            <button
+              type="button"
+              className="btn btn-primary mr-1"
+              onClick={() => Buscar()}
+            >
+              <i className="fa fa-search" /> Buscar
+            </button>
+            <button type="button" className="btn btn-primary" onClick={Agregar}>
+              <i className="fa fa-plus" /> Agregar
+            </button>
+          </div>
         </div>
         {showFilters && (
           <div className="card-body">
@@ -114,11 +108,11 @@ export default function VehiculosBuscar({
                   <div className="col-sm-8 col-md-4">
                     <select
                       className="form-control"
-                      value={IdCategoria}
-                      onChange={(e) => setIdCategoria(e.target.value)}
+                      value={Categoria}
+                      onChange={(e) => setCategoria(e.target.value)}
                     >
                       <option value="">Todas</option>
-                      {mockCategoriasVehiculo.map((c) => (
+                      {Categorias.map((c) => (
                         <option key={c.id_categoria} value={c.id_categoria}>
                           {c.nombre}
                         </option>
@@ -134,11 +128,11 @@ export default function VehiculosBuscar({
                   <div className="col-sm-8 col-md-4">
                     <select
                       className="form-control"
-                      value={IdEstado}
-                      onChange={(e) => setIdEstado(e.target.value)}
+                      value={Estado}
+                      onChange={(e) => setEstado(e.target.value)}
                     >
                       <option value="">Todos</option>
-                      {mockEstadosVehiculo.map((s) => (
+                      {Estados.map((s) => (
                         <option key={s.id_estado} value={s.id_estado}>
                           {s.nombre}
                         </option>
@@ -236,8 +230,8 @@ export default function VehiculosBuscar({
                         setPatente("");
                         setMarca("");
                         setModelo("");
-                        setIdCategoria("");
-                        setIdEstado("");
+                        setCategoria("");
+                        setEstado("");
                         setAnioDesde("");
                         setAnioHasta("");
                         setKmDesde("");
@@ -248,8 +242,8 @@ export default function VehiculosBuscar({
                           patente: "",
                           marca: "",
                           modelo: "",
-                          id_categoria: "",
-                          id_estado: "",
+                          categoria: "",
+                          estado: "",
                           anio_desde: "",
                           anio_hasta: "",
                           km_desde: "",
