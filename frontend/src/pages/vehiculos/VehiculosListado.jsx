@@ -1,8 +1,4 @@
 import React from "react";
-import { mockCategoriasVehiculo, mockEstadosVehiculo } from "../../api/mockData";
-
-const getCategoriaNombre = (id) => mockCategoriasVehiculo.find((c) => c.id_categoria === id)?.nombre ?? "";
-const getEstadoNombre = (id) => mockEstadosVehiculo.find((s) => s.id_estado === id)?.nombre ?? "";
 
 export default function VehiculosListado({ Items, Consultar, Modificar, Eliminar }) {
   return (
@@ -30,8 +26,8 @@ export default function VehiculosListado({ Items, Consultar, Modificar, Eliminar
               <td>{v.marca}</td>
               <td>{v.modelo}</td>
               <td>{v.anio}</td>
-              <td>{getCategoriaNombre(v.id_categoria)}</td>
-              <td>{getEstadoNombre(v.id_estado)}</td>
+              <td>{v.categoria.nombre}</td>
+              <td>{v.estado.nombre}</td>
               <td>{v.km_actual}</td>
               <td>{v.fecha_ultimo_mantenimiento}</td>
               <td className="text-center text-nowrap">

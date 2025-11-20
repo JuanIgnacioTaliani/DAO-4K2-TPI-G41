@@ -5,7 +5,7 @@ const api = axios.create({
 });
 
 // GET /mantenimientos/
-export const getMantenimientos = () => api.get("/mantenimientos/");
+export const getMantenimientos = (params = {}) => api.get("/mantenimientos/", { params });
 
 // GET /mantenimientos/{id}
 export const getMantenimiento = (id) => api.get(`/mantenimientos/${id}`);

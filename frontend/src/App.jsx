@@ -13,7 +13,7 @@ import CategoriasVehiculo from "./pages/categoriasVehiculo/CategoriasVehiculo";
 import Alquileres from "./pages/alquileres/Alquileres";
 import AlquilerPage from "./pages/AlquilerPage";
 import MultasDaniosPage from "./pages/MultasDaniosPage";
-import { MantenimientoPage } from "./pages/MantenimientoPage";
+import Mantenimientos from "./pages/mantenimientos/Mantenimientos";
 
 function AppLayout() {
   return (
@@ -47,7 +47,7 @@ export default function App() {
           <Route path="alquiler" element={<AlquilerPage />} />
           <Route path="alquiler-new" element={<Alquileres />} />
           <Route path="multas-danios" element={<MultasDaniosPage />} />
-          <Route path="mantenimientos" element={<MantenimientoPage />} />
+          <Route path="mantenimientos" element={<Mantenimientos />} />
 
           {/* fallback por si ponen cualquier cosa */}
           <Route path="*" element={<Navigate to="/clientes" replace />} />

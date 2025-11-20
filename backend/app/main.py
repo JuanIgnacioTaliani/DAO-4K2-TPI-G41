@@ -1,3 +1,7 @@
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.database import SessionLocal
+from app.services.mantenimientos import actualizar_vehiculos_disponibles_por_mantenimientos
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
@@ -59,3 +63,15 @@ app.include_router(seed.router)
 @app.get("/")
 def root():
     return {"message": "API de Alquiler de Vehículos - OK"}
+
+def job_actualizar_vehiculos():
+    db = SessionLocal()
+    try:
+        cantidad = actualizar_vehiculos_disponibles_por_mantenimientos(db)
+        print(f"Vehículos actualizados a 'Disponible': {cantidad}")
+    finally:
+        db.close()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(job_actualizar_vehiculos, 'cron', hour=0, minute=0)
+scheduler.start()
