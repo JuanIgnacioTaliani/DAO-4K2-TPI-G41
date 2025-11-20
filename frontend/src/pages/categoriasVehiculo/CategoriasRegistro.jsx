@@ -54,7 +54,7 @@ export default function CategoriasRegistro({ AccionABMC, Item, Grabar, Volver })
 								/>
 							) : (
 								<>
-									<input {...register("tarifa_diaria", { required: true })} className="form-control" />
+									<input {...register("tarifa_diaria", { required: true })} className="form-control" type="number" step="0.01"/>
 									{errors.tarifa_diaria && (
 										<span className="text-danger">La tarifa diaria es requerida</span>
 									)}

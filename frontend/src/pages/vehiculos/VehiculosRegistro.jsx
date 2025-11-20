@@ -1,8 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
-import { mockCategoriasVehiculo, mockEstadosVehiculo } from "../../api/mockData";
 
-export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) {
+export default function VehiculosRegistro({ AccionABMC, Categorias, Estados, Item, Grabar, Volver }) {
   const { register, handleSubmit, formState: { errors } } = useForm({ values: Item });
   const onSubmit = (data) => Grabar(data);
 
@@ -65,8 +64,8 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <select {...register("id_categoria", { required: true, validate: value => value !== "" })} className="form-control">
-                <option value="" disabled selected>-- seleccione --</option>
-                {mockCategoriasVehiculo.map((c) => (
+                <option value="" disabled defaultValue>-- seleccione --</option>
+                {Categorias.map((c) => (
                   <option key={c.id_categoria} value={c.id_categoria}>
                     {c.nombre}
                   </option>
@@ -84,8 +83,8 @@ export default function VehiculosRegistro({ AccionABMC, Item, Grabar, Volver }) 
             </div>
             <div className="col-sm-8 col-md-6">
               <select {...register("id_estado", { required: true, validate: value => value !== "" })} className="form-control">
-                <option value="" disabled selected>-- seleccione --</option>
-                {mockEstadosVehiculo.map((s) => (
+                <option value="" disabled defaultValue>-- seleccione --</option>
+                {Estados.map((s) => (
                   <option key={s.id_estado} value={s.id_estado}>
                     {s.nombre}
                   </option>

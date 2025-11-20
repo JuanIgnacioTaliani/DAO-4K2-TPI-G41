@@ -47,11 +47,11 @@ export default function Vehiculos() {
   };
   const [AccionABMC, setAccionABMC] = useState("L");
 
-  // filtros
   //arrays de los select
   const [Categorias, setCategorias] = useState([]);
   const [Estados, setEstados] = useState([]);
-
+  
+  // filtros
   const [Patente, setPatente] = useState("");
   const [Marca, setMarca] = useState("");
   const [Modelo, setModelo] = useState("");
@@ -266,6 +266,8 @@ export default function Vehiculos() {
       {AccionABMC !== "L" && (
         <VehiculosRegistro
           AccionABMC={AccionABMC}
+          Categorias={Categorias}
+          Estados={Estados}
           Item={Item}
           Grabar={Grabar}
           Volver={Volver}

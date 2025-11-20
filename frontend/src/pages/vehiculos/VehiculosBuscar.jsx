@@ -45,13 +45,6 @@ export default function VehiculosBuscar({
             Filtros de búsqueda
           </h3>
           <div>
-            <button
-              type="button"
-              className="btn btn-primary mr-1"
-              onClick={() => Buscar()}
-            >
-              <i className="fa fa-search" /> Buscar
-            </button>
             <button type="button" className="btn btn-primary" onClick={Agregar}>
               <i className="fa fa-plus" /> Agregar
             </button>
@@ -223,6 +216,13 @@ export default function VehiculosBuscar({
 
                 <div className="row">
                   <div className="col text-center pb-3">
+                    <button
+                      type="button"
+                      className="btn btn-primary mr-1"
+                      onClick={() => Buscar()}
+                    >
+                      <i className="fa fa-search" /> Buscar
+                    </button>
                     <button
                       type="button"
                       className="btn btn-secondary mr-1"
