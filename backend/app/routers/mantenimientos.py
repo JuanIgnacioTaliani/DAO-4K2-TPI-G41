@@ -1,11 +1,14 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from datetime import date
 
 from ..database import get_db
 from ..schemas import mantenimientos as mantenimientoSchema
 from ..models import Mantenimiento, Vehiculo, Empleado, Alquiler
+from ..services import mantenimientos as mantenimientos_service
+from ..services.exceptions import DomainNotFound, BusinessRuleError
 
 router = APIRouter(
     prefix="/mantenimientos",
@@ -14,9 +17,19 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[mantenimientoSchema.MantenimientoOut])
-def listar_mantenimientos(db: Session = Depends(get_db)):
-    """Lista todos los mantenimientos"""
-    return db.query(Mantenimiento).all()
+def listar_mantenimientos(
+    vehiculo: Optional[int] = Query(None, description="Filtro por id_vehiculo"),
+    tipo: Optional[str] = Query(None, description="Filtro por tipo de mantenimiento"),
+    empleado: Optional[int] = Query(None, description="Filtro por id_empleado"),
+    estado: Optional[str] = Query(None, description='Filtro por estado: "en_curso" o "finalizado"'),
+    db: Session = Depends(get_db),
+):
+    """Lista todos los mantenimientos. Permite filtrar por vehículo, tipo y estado.
+
+    - `estado="en_curso"`: devuelve mantenimientos cuya `fecha_fin` sea hoy o posterior, o `NULL` (sin fecha de fin).
+    - `estado="finalizado"`: devuelve mantenimientos cuya `fecha_fin` sea anterior a hoy.
+    """
+    return mantenimientos_service.list_mantenimientos(db, vehiculo, tipo, empleado, estado)
 
 
 @router.get("/{id_mantenimiento}", response_model=mantenimientoSchema.MantenimientoOut)
@@ -37,72 +50,17 @@ def crear_mantenimiento(
     mantenimiento_in: mantenimientoSchema.MantenimientoCreate,
     db: Session = Depends(get_db)
 ):
-    """Crea un nuevo mantenimiento"""
-    # Validar que el vehículo existe
-    vehiculo = db.query(Vehiculo).filter(
-        Vehiculo.id_vehiculo == mantenimiento_in.id_vehiculo
-    ).first()
-    
-    if not vehiculo:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    
-    # Validar que el rango de fechas sea válido (si fecha_fin viene informada)
-    if mantenimiento_in.fecha_fin is not None and mantenimiento_in.fecha_inicio >= mantenimiento_in.fecha_fin:
-        raise HTTPException(status_code=400, detail="Rango de fechas inválido: fecha de inicio debe ser menor a fecha de fin")
-
-    # Validar empleado si se proporciona
-    if mantenimiento_in.id_empleado:
-        empleado = db.query(Empleado).filter(
-            Empleado.id_empleado == mantenimiento_in.id_empleado
-        ).first()
-        
-        if not empleado:
-            raise HTTPException(status_code=404, detail="Empleado no encontrado")
-    
-    # No permitir crear mantenimiento si el vehículo tiene un alquiler EN_CURSO o en CHECKOUT
-    alquiler_activo = db.query(Alquiler).filter(
-        Alquiler.id_vehiculo == mantenimiento_in.id_vehiculo,
-        Alquiler.estado.in_(["EN_CURSO", "CHECKOUT"])  # estados que bloquean creación de mantenimiento
-    ).first()
-    if alquiler_activo:
-        raise HTTPException(status_code=400, detail="No se puede crear mantenimiento: el vehículo tiene un alquiler en curso o en checkout")
-
-    # Crear mantenimiento
-    nuevo_mantenimiento = Mantenimiento(**mantenimiento_in.model_dump())
-    db.add(nuevo_mantenimiento)
-    db.flush()  # obtener id si es necesario sin cerrar transacción
-
-    # Si existen reservas futuras (PENDIENTE) que se vean afectadas por el mantenimiento, cancelarlas
-    hoy = date.today()
-    reservas_futuras = db.query(Alquiler).filter(
-        Alquiler.id_vehiculo == mantenimiento_in.id_vehiculo,
-        Alquiler.estado == "PENDIENTE",
-        Alquiler.fecha_inicio >= hoy
-    ).all()
-
-    for reserva in reservas_futuras:
-        # Si el mantenimiento no tiene fecha_fin, afecta cualquier reserva futura
-        # Si tiene fecha_fin y el fin es posterior o igual al inicio de la reserva, también afecta
-        afecta = False
-        if mantenimiento_in.fecha_fin is None:
-            afecta = True
-        else:
-            if mantenimiento_in.fecha_fin >= reserva.fecha_inicio:
-                afecta = True
-
-        if afecta:
-            reserva.estado = "CANCELADO"
-            reserva.motivo_cancelacion = "Vehículo en mantenimiento"
-            reserva.fecha_cancelacion = hoy
-            # asociar cancelador si vino empleado en el mantenimiento
-            if mantenimiento_in.id_empleado:
-                reserva.id_empleado_cancelador = mantenimiento_in.id_empleado
-            db.add(reserva)
-
-    db.commit()
-    db.refresh(nuevo_mantenimiento)
-
-    return nuevo_mantenimiento
+    """Crea un nuevo mantenimiento delegando validaciones y persistencia a la capa de servicios."""
+    try:
+        nuevo = mantenimientos_service.create_mantenimiento(db, mantenimiento_in)
+        return nuevo
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        # No exponer detalles, dejar que el logger o el middleware lo registre si existe
+        raise HTTPException(status_code=500, detail="Error interno al crear mantenimiento")
 
 
 @router.put("/{id_mantenimiento}", response_model=mantenimientoSchema.MantenimientoOut)
@@ -111,65 +69,28 @@ def actualizar_mantenimiento(
     mantenimiento_in: mantenimientoSchema.MantenimientoUpdate,
     db: Session = Depends(get_db)
 ):
-    """Actualiza un mantenimiento existente"""
-    mantenimiento = db.query(Mantenimiento).filter(
-        Mantenimiento.id_mantenimiento == id_mantenimiento
-    ).first()
-    
-    if not mantenimiento:
-        raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
-    
-    # Validar rango de fechas si se proporcionan ambas
-    if (
-        mantenimiento_in.fecha_inicio is not None
-        and mantenimiento_in.fecha_fin is not None
-        and mantenimiento_in.fecha_inicio >= mantenimiento_in.fecha_fin
-    ):
-        raise HTTPException(status_code=400, detail="Rango de fechas inválido: fecha de inicio debe ser menor a fecha de fin")
-
-    # Validar vehículo si se proporciona
-    if mantenimiento_in.id_vehiculo:
-        vehiculo = db.query(Vehiculo).filter(
-            Vehiculo.id_vehiculo == mantenimiento_in.id_vehiculo
-        ).first()
-        
-        if not vehiculo:
-            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    
-    # Validar empleado si se proporciona
-    if mantenimiento_in.id_empleado:
-        empleado = db.query(Empleado).filter(
-            Empleado.id_empleado == mantenimiento_in.id_empleado
-        ).first()
-        
-        if not empleado:
-            raise HTTPException(status_code=404, detail="Empleado no encontrado")
-    
-    # Actualizar campos
-    update_data = mantenimiento_in.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(mantenimiento, key, value)
-    
-    db.commit()
-    db.refresh(mantenimiento)
-    
-    return mantenimiento
+    """Actualiza un mantenimiento existente delegando validaciones y persistencia a la capa de servicios."""
+    try:
+        actualizado = mantenimientos_service.update_mantenimiento(db, id_mantenimiento, mantenimiento_in)
+        return actualizado
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al actualizar mantenimiento")
 
 
 @router.delete("/{id_mantenimiento}")
 def eliminar_mantenimiento(id_mantenimiento: int, db: Session = Depends(get_db)):
-    """Elimina un mantenimiento"""
-    mantenimiento = db.query(Mantenimiento).filter(
-        Mantenimiento.id_mantenimiento == id_mantenimiento
-    ).first()
-    
-    if not mantenimiento:
-        raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
-    
-    db.delete(mantenimiento)
-    db.commit()
-    
-    return {"message": "Mantenimiento eliminado exitosamente"}
+    """Elimina un mantenimiento y actualiza el estado del vehículo si corresponde."""
+    try:
+        mantenimientos_service.delete_mantenimiento(db, id_mantenimiento)
+        return {"message": "Mantenimiento eliminado exitosamente"}
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al eliminar mantenimiento")
 
 
 @router.get("/vehiculo/{id_vehiculo}", response_model=List[mantenimientoSchema.MantenimientoOut])
