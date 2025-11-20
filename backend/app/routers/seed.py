@@ -149,7 +149,7 @@ def seed_database(db: Session = Depends(get_db)):
         vehiculos = [
             Vehiculo(
                 id_vehiculo=1, patente="ABC123", marca="Toyota", modelo="Corolla",
-                anio=2022, id_categoria=2, id_estado=1, km_actual=15000,
+                anio=2022, id_categoria=2, id_estado=2, km_actual=15000,
                 fecha_ultimo_mantenimiento=datetime.strptime("2025-10-15", "%Y-%m-%d").date()
             ),
             Vehiculo(
@@ -159,7 +159,7 @@ def seed_database(db: Session = Depends(get_db)):
             ),
             Vehiculo(
                 id_vehiculo=3, patente="GHI789", marca="Ford", modelo="Ranger",
-                anio=2021, id_categoria=3, id_estado=2, km_actual=45000,
+                anio=2021, id_categoria=3, id_estado=1, km_actual=45000,
                 fecha_ultimo_mantenimiento=datetime.strptime("2025-09-20", "%Y-%m-%d").date()
             ),
             Vehiculo(
@@ -174,7 +174,7 @@ def seed_database(db: Session = Depends(get_db)):
             ),
             Vehiculo(
                 id_vehiculo=6, patente="PQR678", marca="Fiat", modelo="Cronos",
-                anio=2022, id_categoria=1, id_estado=3, km_actual=32000,
+                anio=2022, id_categoria=1, id_estado=1, km_actual=32000,
                 fecha_ultimo_mantenimiento=datetime.strptime("2025-11-15", "%Y-%m-%d").date()
             ),
         ]
