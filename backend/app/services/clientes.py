@@ -27,6 +27,13 @@ def listar_clientes(nombre: Optional[str],apellido: Optional[str],dni: Optional[
     return query.all()
 
 
+def obtener_cliente_por_id(db: Session, id_cliente: int) -> Cliente:
+    cliente = db.query(Cliente).get(id_cliente)
+    if not cliente:
+        raise DomainNotFound("Cliente no encontrado")
+    return cliente
+
+
 def crear_cliente(db:Session, cliente_in) -> Cliente:
     existing = db.query(Cliente).filter(Cliente.dni == cliente_in.dni).first()
     if existing:

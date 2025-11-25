@@ -3,9 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import get_db
-from ..models import clientes as clienteModel
 from ..schemas import clientes as clienteSchema
-from ..models.alquileres import Alquiler
 from ..services import clientes as clientes_service
 from ..services.exceptions import DomainNotFound, BusinessRuleError
 
@@ -49,10 +47,12 @@ def listar_clientes(
 
 @router.get("/{cliente_id}", response_model=clienteSchema.ClienteOut)
 def obtener_cliente(cliente_id: int, db: Session = Depends(get_db)):
-    cliente = db.query(clienteModel.Cliente).get(cliente_id)
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    return cliente
+    try:
+        return clientes_service.obtener_cliente_por_id(db, cliente_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al obtener el cliente")
 
 
 @router.put("/{cliente_id}", response_model=clienteSchema.ClienteOut)
