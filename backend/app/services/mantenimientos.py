@@ -30,6 +30,16 @@ def list_mantenimientos(db: Session, vehiculo=None, tipo=None, empleado=None, es
     return query.all()
 
 
+def get_mantenimiento(db: Session, id_mantenimiento: int) -> Mantenimiento:
+    """Obtiene un mantenimiento por su ID."""
+    mantenimiento = db.query(Mantenimiento).filter(
+        Mantenimiento.id_mantenimiento == id_mantenimiento
+    ).first()
+    if not mantenimiento:
+        raise DomainNotFound("Mantenimiento no encontrado")
+    return mantenimiento
+
+
 def create_mantenimiento(db: Session, mantenimiento_in) -> Mantenimiento:
     """Crea un mantenimiento aplicando todas las validaciones de negocio.
 
@@ -43,7 +53,7 @@ def create_mantenimiento(db: Session, mantenimiento_in) -> Mantenimiento:
             raise DomainNotFound("Vehículo no encontrado")
 
         # validar rango de fechas
-        if mantenimiento_in.fecha_fin is not None and mantenimiento_in.fecha_inicio >= mantenimiento_in.fecha_fin:
+        if mantenimiento_in.fecha_fin is not None and mantenimiento_in.fecha_inicio > mantenimiento_in.fecha_fin:
             raise BusinessRuleError("Rango de fechas inválido: fecha de inicio debe ser menor a fecha de fin")
 
         # validar empleado si se proporciona
@@ -174,6 +184,7 @@ def update_mantenimiento(db: Session, id_mantenimiento: int, mantenimiento_in) -
         db.rollback()
         raise
 
+
 def actualizar_vehiculos_disponibles_por_mantenimientos(db: Session):
     """
     Actualiza el estado de los vehículos a 'Disponible' si su mantenimiento finalizó (fecha_fin <= hoy)
@@ -233,3 +244,17 @@ def delete_mantenimiento(db: Session, id_mantenimiento: int):
     except Exception:
         db.rollback()
         raise
+
+
+def obtener_mantenimientos_vehiculo(db: Session, id_vehiculo: int):
+    """Obtiene todos los mantenimientos de un vehículo específico"""
+    vehiculo = db.query(Vehiculo).filter(Vehiculo.id_vehiculo == id_vehiculo).first()
+    
+    if not vehiculo:
+        raise DomainNotFound("Vehículo no encontrado")
+    
+    mantenimientos = db.query(Mantenimiento).filter(
+        Mantenimiento.id_vehiculo == id_vehiculo
+    ).order_by(Mantenimiento.fecha_inicio.desc()).all()
+    
+    return mantenimientos

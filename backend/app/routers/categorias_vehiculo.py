@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 
 from ..database import get_db
-from ..models import categorias_vehiculo as categoriaModel
-from ..models import Vehiculo
 from ..schemas import categorias_vehiculo as categoriaSchema
+from ..services.exceptions import BusinessRuleError, DomainNotFound
+from ..services import categorias_vehiculo as categoriaService
 
 router = APIRouter(
     prefix="/categorias-vehiculo",
@@ -16,19 +15,12 @@ router = APIRouter(
 
 @router.post("/", response_model=categoriaSchema.CategoriaVehiculoOut, status_code=status.HTTP_201_CREATED)
 def crear_categoria(categoria_in: categoriaSchema.CategoriaVehiculoCreate, db: Session = Depends(get_db)):
-    existente = (
-        db.query(categoriaModel.CategoriaVehiculo)
-        .filter(categoriaModel.CategoriaVehiculo.nombre == categoria_in.nombre)
-        .first()
-    )
-    if existente:
-        raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre")
-
-    categoria = categoriaModel.CategoriaVehiculo(**categoria_in.model_dump())
-    db.add(categoria)
-    db.commit()
-    db.refresh(categoria)
-    return categoria
+    try:
+        return categoriaService.crear_categoria_vehiculo(db, categoria_in)
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al crear la categoría de vehículo")
 
 
 @router.get("/", response_model=List[categoriaSchema.CategoriaVehiculoOut])
@@ -39,26 +31,21 @@ def listar_categorias(
     tarifa_hasta: Optional[float] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(categoriaModel.CategoriaVehiculo)
-
-    if nombre:
-        query = query.filter(categoriaModel.CategoriaVehiculo.nombre.ilike(f"%{nombre}%"))
-    if descripcion:
-        query = query.filter(categoriaModel.CategoriaVehiculo.descripcion.ilike(f"%{descripcion}%"))
-    if tarifa_desde is not None:
-        query = query.filter(categoriaModel.CategoriaVehiculo.tarifa_diaria >= tarifa_desde)
-    if tarifa_hasta is not None:
-        query = query.filter(categoriaModel.CategoriaVehiculo.tarifa_diaria <= tarifa_hasta)
-
-    return query.all()
+    return categoriaService.listar_categorias_vehiculo(
+        db,
+        nombre=nombre,
+        descripcion=descripcion,
+        tarifa_desde=tarifa_desde,
+        tarifa_hasta=tarifa_hasta,
+    )
 
 
 @router.get("/{categoria_id}", response_model=categoriaSchema.CategoriaVehiculoOut)
 def obtener_categoria(categoria_id: int, db: Session = Depends(get_db)):
-    categoria = db.query(categoriaModel.CategoriaVehiculo).get(categoria_id)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    return categoria
+    try:
+        return categoriaService.obtener_categoria_vehiculo(db, categoria_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.put("/{categoria_id}", response_model=categoriaSchema.CategoriaVehiculoOut)
@@ -67,45 +54,23 @@ def actualizar_categoria(
     categoria_in: categoriaSchema.CategoriaVehiculoUpdate,
     db: Session = Depends(get_db),
 ):
-    categoria = db.query(categoriaModel.CategoriaVehiculo).get(categoria_id)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-
-    data = categoria_in.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(categoria, field, value)
-
-    db.commit()
-    db.refresh(categoria)
-    return categoria
+    try:
+        return categoriaService.actualizar_categoria_vehiculo(db, categoria_id, categoria_in)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al actualizar la categoría de vehículo")
 
 
 @router.delete("/{categoria_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
-    categoria = db.query(categoriaModel.CategoriaVehiculo).get(categoria_id)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    # Validar que no haya vehículos que usen esta categoría
-    vehiculo_existente = (
-        db.query(Vehiculo)
-        .filter(Vehiculo.id_categoria == categoria_id)
-        .first()
-    )
-
-    if vehiculo_existente:
-        raise HTTPException(
-            status_code=409,
-            detail="No se puede eliminar la categoría porque hay vehículos asociados",
-        )
-
     try:
-        db.delete(categoria)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="No se puede eliminar la categoría porque está asociada a uno o más registros (p. ej. vehículos).",
-        )
-
-    return None
+        categoriaService.eliminar_categoria_vehiculo(db, categoria_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al eliminar la categoría de vehículo")

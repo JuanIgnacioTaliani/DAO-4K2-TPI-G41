@@ -35,21 +35,17 @@ def listar_mantenimientos(
 @router.get("/{id_mantenimiento}", response_model=mantenimientoSchema.MantenimientoOut)
 def obtener_mantenimiento(id_mantenimiento: int, db: Session = Depends(get_db)):
     """Obtiene un mantenimiento por ID"""
-    mantenimiento = db.query(Mantenimiento).filter(
-        Mantenimiento.id_mantenimiento == id_mantenimiento
-    ).first()
-    
-    if not mantenimiento:
-        raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
-    
-    return mantenimiento
+    try:
+        mantenimiento = mantenimientos_service.get_mantenimiento(db, id_mantenimiento)
+        return mantenimiento
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al obtener mantenimiento")
 
 
 @router.post("/", response_model=mantenimientoSchema.MantenimientoOut, status_code=status.HTTP_201_CREATED)
-def crear_mantenimiento(
-    mantenimiento_in: mantenimientoSchema.MantenimientoCreate,
-    db: Session = Depends(get_db)
-):
+def crear_mantenimiento(mantenimiento_in: mantenimientoSchema.MantenimientoCreate, db: Session = Depends(get_db)):
     """Crea un nuevo mantenimiento delegando validaciones y persistencia a la capa de servicios."""
     try:
         nuevo = mantenimientos_service.create_mantenimiento(db, mantenimiento_in)
@@ -64,11 +60,7 @@ def crear_mantenimiento(
 
 
 @router.put("/{id_mantenimiento}", response_model=mantenimientoSchema.MantenimientoOut)
-def actualizar_mantenimiento(
-    id_mantenimiento: int,
-    mantenimiento_in: mantenimientoSchema.MantenimientoUpdate,
-    db: Session = Depends(get_db)
-):
+def actualizar_mantenimiento(id_mantenimiento: int,mantenimiento_in: mantenimientoSchema.MantenimientoUpdate,db: Session = Depends(get_db)):
     """Actualiza un mantenimiento existente delegando validaciones y persistencia a la capa de servicios."""
     try:
         actualizado = mantenimientos_service.update_mantenimiento(db, id_mantenimiento, mantenimiento_in)
@@ -96,13 +88,10 @@ def eliminar_mantenimiento(id_mantenimiento: int, db: Session = Depends(get_db))
 @router.get("/vehiculo/{id_vehiculo}", response_model=List[mantenimientoSchema.MantenimientoOut])
 def obtener_mantenimientos_vehiculo(id_vehiculo: int, db: Session = Depends(get_db)):
     """Obtiene todos los mantenimientos de un vehículo específico"""
-    vehiculo = db.query(Vehiculo).filter(Vehiculo.id_vehiculo == id_vehiculo).first()
-    
-    if not vehiculo:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    
-    mantenimientos = db.query(Mantenimiento).filter(
-        Mantenimiento.id_vehiculo == id_vehiculo
-    ).order_by(Mantenimiento.fecha_inicio.desc()).all()
-    
-    return mantenimientos
+    try:
+        mantenimientos = mantenimientos_service.get_mantenimientos_by_vehiculo(db, id_vehiculo)
+        return mantenimientos
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al obtener mantenimientos del vehículo")

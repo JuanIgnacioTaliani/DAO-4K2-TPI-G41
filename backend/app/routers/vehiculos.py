@@ -5,25 +5,25 @@ from typing import List, Optional
 from datetime import date, datetime
 
 from ..database import get_db
-from ..models import vehiculos as vehiculoModel
-from ..models import Alquiler, Mantenimiento
 from ..schemas import vehiculos as vehiculoSchema
+from ..schemas.vehiculos import VehiculoDisponibilidadOut
+from ..services.exceptions import DomainNotFound, BusinessRuleError
+from ..services import vehiculos as vehiculoService
+
 
 router = APIRouter(prefix="/vehiculos", tags=["vehiculos"])
 
 
 @router.post("/", response_model=vehiculoSchema.VehiculoOut, status_code=status.HTTP_201_CREATED)
 def crear_vehiculo(vehiculo_in: vehiculoSchema.VehiculoCreate, db: Session = Depends(get_db)):
-    # patente única
-    existente = db.query(vehiculoModel.Vehiculo).filter(vehiculoModel.Vehiculo.patente == vehiculo_in.patente).first()
-    if existente:
-        raise HTTPException(status_code=400, detail="Ya existe un vehículo con esa patente")
-
-    vehiculo = vehiculoModel.Vehiculo(**vehiculo_in.model_dump())
-    db.add(vehiculo)
-    db.commit()
-    db.refresh(vehiculo)
-    return vehiculo
+    try:
+        return vehiculoService.crear_vehiculo(db, vehiculo_in)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al crear el vehículo")
 
 
 @router.get("/", response_model=List[vehiculoSchema.VehiculoOut])
@@ -41,157 +41,62 @@ def listar_vehiculos(
     fecha_ultimo_mantenimiento_hasta: Optional[date] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(vehiculoModel.Vehiculo)
-
-    if patente:
-        query = query.filter(vehiculoModel.Vehiculo.patente.ilike(f"%{patente}%"))
-    if marca:
-        query = query.filter(vehiculoModel.Vehiculo.marca.ilike(f"%{marca}%"))
-    if modelo:
-        query = query.filter(vehiculoModel.Vehiculo.modelo.ilike(f"%{modelo}%"))
-    if anio_desde is not None:
-        query = query.filter(vehiculoModel.Vehiculo.anio >= anio_desde)
-    if anio_hasta is not None:
-        query = query.filter(vehiculoModel.Vehiculo.anio <= anio_hasta)
-    if categoria is not None:
-        query = query.filter(vehiculoModel.Vehiculo.id_categoria == categoria)
-    if estado is not None:
-        query = query.filter(vehiculoModel.Vehiculo.id_estado == estado)
-    if km_desde is not None:
-        query = query.filter(vehiculoModel.Vehiculo.km_actual >= km_desde)
-    if km_hasta is not None:
-        query = query.filter(vehiculoModel.Vehiculo.km_actual <= km_hasta)
-    if fecha_ultimo_mantenimiento_desde is not None:
-        query = query.filter(vehiculoModel.Vehiculo.fecha_ultimo_mantenimiento >= fecha_ultimo_mantenimiento_desde)
-    if fecha_ultimo_mantenimiento_hasta is not None:
-        from datetime import timedelta
-        hasta = fecha_ultimo_mantenimiento_hasta + timedelta(days=1)
-        query = query.filter(vehiculoModel.Vehiculo.fecha_ultimo_mantenimiento < hasta)
-
-    return query.all()
-
+    return vehiculoService.listar_vehiculos(
+        db,
+        patente,
+        marca,
+        modelo,
+        anio_desde,
+        anio_hasta,
+        categoria,
+        estado,
+        km_desde,
+        km_hasta,
+        fecha_ultimo_mantenimiento_desde,
+        fecha_ultimo_mantenimiento_hasta
+    )
 
 @router.get("/{vehiculo_id}", response_model=vehiculoSchema.VehiculoOut)
 def obtener_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
-    vehiculo = db.query(vehiculoModel.Vehiculo).get(vehiculo_id)
-    if not vehiculo:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    return vehiculo
-
+    try:
+        return vehiculoService.obtener_vehiculo(db, vehiculo_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al obtener el vehículo")
+    
 
 @router.put("/{vehiculo_id}", response_model=vehiculoSchema.VehiculoOut)
 def actualizar_vehiculo(vehiculo_id: int, vehiculo_in: vehiculoSchema.VehiculoUpdate, db: Session = Depends(get_db)):
-    vehiculo = db.query(vehiculoModel.Vehiculo).get(vehiculo_id)
-    if not vehiculo:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-
-    data = vehiculo_in.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(vehiculo, field, value)
-
-    db.commit()
-    db.refresh(vehiculo)
-    return vehiculo
+    try:
+        return vehiculoService.actualizar_vehiculo(db, vehiculo_id, vehiculo_in.model_dump(exclude_unset=True))
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al actualizar el vehículo")
 
 
 @router.delete("/{vehiculo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
-    vehiculo = db.query(vehiculoModel.Vehiculo).get(vehiculo_id)
-    if not vehiculo:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    # Comprobar asociaciones: alquileres o mantenimientos
-    alquiler_existente = (
-        db.query(Alquiler)
-        .filter(Alquiler.id_vehiculo == vehiculo_id)
-        .first()
-    )
-
-    mantenimiento_existente = (
-        db.query(Mantenimiento)
-        .filter(Mantenimiento.id_vehiculo == vehiculo_id)
-        .first()
-    )
-
-    if alquiler_existente or mantenimiento_existente:
-        raise HTTPException(
-            status_code=409,
-            detail="No se puede eliminar el vehículo porque tiene alquileres o mantenimientos asociados",
-        )
-
     try:
-        db.delete(vehiculo)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="No se puede eliminar el vehículo porque está asociado a uno o más registros (p. ej. alquileres/mantenimientos).",
-        )
-
-    return None
+        vehiculoService.eliminar_vehiculo(db, vehiculo_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al eliminar el vehículo")
 
 
-@router.get("/disponibilidad/all", response_model=List[dict])
+@router.get("/disponibilidad/all", response_model=List[VehiculoDisponibilidadOut])
 def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
     """
     Obtiene todos los vehículos con su estado de disponibilidad.
     Estados posibles: 'Disponible', 'Ocupado', 'En Mantenimiento'
     """
-    vehiculos = db.query(vehiculoModel.Vehiculo).all()
-    hoy = date.today()
-    
-    resultado = []
-    
-    for vehiculo in vehiculos:
-        estado_disponibilidad = "Disponible"
-        ocupacion_detalle = None
-
-        # 1. Verificar si está en mantenimiento hoy (tiene prioridad)
-        mantenimiento_activo = db.query(Mantenimiento).filter(
-            Mantenimiento.id_vehiculo == vehiculo.id_vehiculo,
-            Mantenimiento.fecha_inicio <= hoy,
-            ((Mantenimiento.fecha_fin.is_(None)) | (Mantenimiento.fecha_fin >= hoy))
-        ).first()
-        
-        if mantenimiento_activo:
-            estado_disponibilidad = "En Mantenimiento"
-            ocupacion_detalle = "MANTENIMIENTO"
-        else:
-            # 2. Verificar si está ocupado hoy por un alquiler EN_CURSO o CHECKOUT
-            alquiler_ocupado = db.query(Alquiler).filter(
-                Alquiler.id_vehiculo == vehiculo.id_vehiculo,
-                Alquiler.estado.in_(["EN_CURSO", "CHECKOUT"])
-            ).first()
-
-            if alquiler_ocupado:
-                estado_disponibilidad = "Ocupado"
-                ocupacion_detalle = alquiler_ocupado.estado
-            else:
-                # 3. Verificar si está reservado (PENDIENTE)
-                reserva = db.query(Alquiler).filter(
-                    Alquiler.id_vehiculo == vehiculo.id_vehiculo,
-                    Alquiler.estado == "PENDIENTE"
-                ).first()
-                if reserva:
-                    estado_disponibilidad = "Reservado"
-                    ocupacion_detalle = "PENDIENTE"
-        
-        # Convertir el vehículo a dict y agregar el estado
-        vehiculo_dict = {
-            "id_vehiculo": vehiculo.id_vehiculo,
-            "patente": vehiculo.patente,
-            "marca": vehiculo.marca,
-            "modelo": vehiculo.modelo,
-            "anio": vehiculo.anio,
-            "km_actual": vehiculo.km_actual,
-            "id_categoria": vehiculo.id_categoria,
-            "id_estado": vehiculo.id_estado,
-            "fecha_ultimo_mantenimiento": str(vehiculo.fecha_ultimo_mantenimiento) if vehiculo.fecha_ultimo_mantenimiento else None,
-            "estado_disponibilidad": estado_disponibilidad,
-            "ocupacion_detalle": ocupacion_detalle
-        }
-        
-        resultado.append(vehiculo_dict)
-    
-    return resultado
-
+    try:
+        return vehiculoService.obtener_vehiculos_con_disponibilidad(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
