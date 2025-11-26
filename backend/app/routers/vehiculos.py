@@ -8,6 +8,7 @@ from ..database import get_db
 from ..schemas import vehiculos as vehiculoSchema
 from ..schemas.vehiculos import VehiculoDisponibilidadOut
 from ..services.exceptions import DomainNotFound, BusinessRuleError
+from ..schemas.vehiculos_disponibilidad import VehiculoDisponibilidadDetalleOut
 from ..services import vehiculos as vehiculoService
 
 
@@ -98,5 +99,18 @@ def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
     """
     try:
         return vehiculoService.obtener_vehiculos_con_disponibilidad(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/disponibilidad/{vehiculo_id}", response_model=VehiculoDisponibilidadDetalleOut)
+def obtener_disponibilidad_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
+    """
+    Obtiene el estado de disponibilidad de un vehículo específico junto con detalles de ocupación.
+    """
+    try:
+        return vehiculoService.obtener_disponibilidad(db, vehiculo_id)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

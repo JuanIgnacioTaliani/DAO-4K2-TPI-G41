@@ -47,3 +47,6 @@ class MantenimientoOut(BaseModel):
     costo: Optional[Decimal] = None
     id_empleado: Optional[int] = None
     empleado: EmpleadoOut
+
+    class Config:
+        from_attributes = True

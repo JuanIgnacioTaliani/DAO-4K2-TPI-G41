@@ -6,6 +6,7 @@ from datetime import date
 from ..models import Vehiculo, Alquiler, Mantenimiento
 from .exceptions import DomainNotFound, BusinessRuleError
 from ..schemas.vehiculos import VehiculoDisponibilidadOut, VehiculoOut
+from ..schemas.vehiculos_disponibilidad import VehiculoDisponibilidadDetalleOut
 
 
 def listar_vehiculos(
@@ -166,3 +167,16 @@ def obtener_vehiculos_con_disponibilidad(db: Session) -> List[VehiculoDisponibil
         )
     
     return resultado
+
+def obtener_disponibilidad(db: Session, vehiculo_id: int) -> VehiculoDisponibilidadDetalleOut:
+    vehiculo = obtener_vehiculo(db, vehiculo_id)
+    hoy = date.today()
+
+    alquileres = db.query(Alquiler).filter(Alquiler.id_vehiculo == vehiculo_id).all()
+    mantenimientos = db.query(Mantenimiento).filter(Mantenimiento.id_vehiculo == vehiculo_id).all()
+
+    return VehiculoDisponibilidadDetalleOut(
+        vehiculo=vehiculo,
+        alquileres=alquileres,
+        mantenimientos=mantenimientos
+    )

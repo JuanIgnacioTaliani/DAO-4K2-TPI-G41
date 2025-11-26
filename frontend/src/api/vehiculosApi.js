@@ -79,3 +79,6 @@ export const updateVehiculo = (id, vehiculo) =>
 
 export const deleteVehiculo = (id) =>
   USE_MOCK ? mockApi.deleteVehiculo(id) : api.delete(`/vehiculos/${id}`);
+
+export const getDisponibilidad = (id_vehiculo) =>
+  api.get(`/vehiculos/disponibilidad/${id_vehiculo}`);
