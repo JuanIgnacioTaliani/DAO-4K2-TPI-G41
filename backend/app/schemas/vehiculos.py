@@ -119,3 +119,9 @@ class VehiculoOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class VehiculoDisponibilidadOut(BaseModel):
+    vehiculo: VehiculoOut
+    estado_disponibilidad: str
+    ocupacion_detalle: Optional[str] = None

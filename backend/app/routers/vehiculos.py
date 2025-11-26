@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from ..database import get_db
 from ..schemas import vehiculos as vehiculoSchema
+from ..schemas.vehiculos import VehiculoDisponibilidadOut
 from ..services.exceptions import DomainNotFound, BusinessRuleError
 from ..services import vehiculos as vehiculoService
 
@@ -89,7 +90,7 @@ def eliminar_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error interno al eliminar el vehículo")
 
 
-@router.get("/disponibilidad/all", response_model=List[dict])
+@router.get("/disponibilidad/all", response_model=List[VehiculoDisponibilidadOut])
 def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
     """
     Obtiene todos los vehículos con su estado de disponibilidad.
@@ -98,4 +99,4 @@ def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
     try:
         return vehiculoService.obtener_vehiculos_con_disponibilidad(db)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno al obtener los vehículos con disponibilidad")
+        raise HTTPException(status_code=500, detail=str(e))

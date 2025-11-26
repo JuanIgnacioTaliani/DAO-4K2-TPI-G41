@@ -5,6 +5,7 @@ from datetime import date
 
 from ..models import Vehiculo, Alquiler, Mantenimiento
 from .exceptions import DomainNotFound, BusinessRuleError
+from ..schemas.vehiculos import VehiculoDisponibilidadOut, VehiculoOut
 
 
 def listar_vehiculos(
@@ -115,11 +116,11 @@ def eliminar_vehiculo(db: Session, vehiculo_id: int) -> None:
     db.commit()
 
 
-def obtener_vehiculos_con_disponibilidad(db: Session) -> List[dict]:
+def obtener_vehiculos_con_disponibilidad(db: Session) -> List[VehiculoDisponibilidadOut]:
     vehiculos = db.query(Vehiculo).all()
     hoy = date.today()
     
-    resultado = []
+    resultado: List[VehiculoDisponibilidadOut] = []
     
     for vehiculo in vehiculos:
         estado_disponibilidad = "Disponible"
@@ -156,10 +157,12 @@ def obtener_vehiculos_con_disponibilidad(db: Session) -> List[dict]:
                     estado_disponibilidad = "Ocupado"
                     ocupacion_detalle = "RESERVADO"
 
-        resultado.append({
-            "vehiculo": vehiculo,
-            "estado_disponibilidad": estado_disponibilidad,
-            "ocupacion_detalle": ocupacion_detalle
-        })
+        resultado.append(
+            VehiculoDisponibilidadOut(
+                vehiculo=vehiculo,
+                estado_disponibilidad=estado_disponibilidad,
+                ocupacion_detalle=ocupacion_detalle
+            )
+        )
     
     return resultado
