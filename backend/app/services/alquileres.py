@@ -2,7 +2,7 @@ from sqlalchemy import or_
 from datetime import date, datetime
 from sqlalchemy.orm import Session
 
-from ..models import Alquiler, Cliente, Vehiculo, Empleado, Mantenimiento, EstadoVehiculo
+from ..models import Alquiler, Cliente, Vehiculo, Empleado, Mantenimiento, EstadoVehiculo, MultaDanio
 from ..schemas import alquileres as alquilerSchema
 from .exceptions import DomainNotFound, BusinessRuleError
 
@@ -215,6 +215,11 @@ def update_alquiler(db: Session, id_alquiler: int, alquiler_in) -> Alquiler:
 def eliminar_alquiler(db: Session, id_alquiler: int) -> None:
     alquiler = get_alquiler(db, id_alquiler)
     db.delete(alquiler)
+    # eliminar multas asociadas al alquiler
+    multas = db.query(MultaDanio).filter(MultaDanio.id_alquiler == id_alquiler).all()
+    for multa in multas:
+        db.delete(multa)
+
     db.commit()
 
 

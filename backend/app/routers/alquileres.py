@@ -86,7 +86,7 @@ def eliminar_alquiler(id_alquiler: int, db: Session = Depends(get_db)):
     except BusinessRuleError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno al eliminar el alquiler")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{id_alquiler}/checkout", response_model=alquilerSchema.CheckoutResponse)
