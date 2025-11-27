@@ -66,9 +66,6 @@ export const getVehiculos = (params = {}) =>
 export const getVehiculoById = (id) =>
   USE_MOCK ? mockApi.getVehiculoById(id) : api.get(`/vehiculos/${id}`);
 
-export const getVehiculosConDisponibilidad = () =>
-  api.get("/vehiculos/disponibilidad/all");
-
 export const createVehiculo = (vehiculo) =>
   USE_MOCK ? mockApi.createVehiculo(vehiculo) : api.post("/vehiculos/", vehiculo);
 

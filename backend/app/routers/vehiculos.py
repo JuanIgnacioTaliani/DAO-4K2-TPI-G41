@@ -91,18 +91,6 @@ def eliminar_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/disponibilidad/all", response_model=List[VehiculoDisponibilidadOut])
-def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
-    """
-    Obtiene todos los vehículos con su estado de disponibilidad.
-    Estados posibles: 'Disponible', 'Ocupado', 'En Mantenimiento'
-    """
-    try:
-        return vehiculoService.obtener_vehiculos_con_disponibilidad(db)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/disponibilidad/{vehiculo_id}", response_model=VehiculoDisponibilidadDetalleOut)
 def obtener_disponibilidad_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
     """

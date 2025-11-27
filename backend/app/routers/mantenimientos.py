@@ -85,18 +85,6 @@ def eliminar_mantenimiento(id_mantenimiento: int, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail="Error interno al eliminar mantenimiento")
 
 
-@router.get("/vehiculo/{id_vehiculo}", response_model=List[mantenimientoSchema.MantenimientoOut])
-def obtener_mantenimientos_vehiculo(id_vehiculo: int, db: Session = Depends(get_db)):
-    """Obtiene todos los mantenimientos de un vehículo específico"""
-    try:
-        mantenimientos = mantenimientos_service.get_mantenimientos_by_vehiculo(db, id_vehiculo)
-        return mantenimientos
-    except DomainNotFound as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Error interno al obtener mantenimientos del vehículo")
-
-
 @router.post("/actualizar-vehiculos-disponibles", response_model=int)
 def actualizar_vehiculos_disponibles(db: Session = Depends(get_db)):
     """Actualiza el estado de los vehículos a 'Disponible' si sus mantenimientos han finalizado."""

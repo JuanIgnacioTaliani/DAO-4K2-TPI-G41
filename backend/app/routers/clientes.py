@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from difflib import SequenceMatcher
 from sqlalchemy import or_
 
 from ..database import get_db
 from ..schemas import clientes as clienteSchema
 from ..services import clientes as clientes_service
-from ..models.clientes import Cliente
 from ..services.exceptions import DomainNotFound, BusinessRuleError
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -50,52 +48,15 @@ def listar_clientes(
 
 @router.get("/suggest", summary="Sugerencias de clientes por coincidencia aproximada")
 def sugerir_clientes(
+    db: Session = Depends(get_db),
     query: str = Query(..., min_length=1, description="Texto parcial para buscar en nombre o apellido"),
     limit: int = Query(3, ge=1, le=10),
-    db: Session = Depends(get_db),
 ):
-    q = query.strip()
-    if not q:
-        return []
-    pattern = f"%{q.lower()}%"
-    # Buscar hasta 200 candidatos por substring
-    candidatos = db.query(Cliente).filter(
-        or_(
-            Cliente.nombre.ilike(pattern),
-            Cliente.apellido.ilike(pattern)
-        )
-    ).limit(200).all()
-    # Si no hay candidatos por substring y la query es >=2 chars, traer primeros 50 para similitud general
-    if not candidatos and len(q) >= 2:
-        candidatos = db.query(Cliente).limit(50).all()
-
-    scored = []
-    q_lower = q.lower()
-    for c in candidatos:
-        full = f"{c.nombre} {c.apellido}".lower()
-        nombre_lower = c.nombre.lower()
-        apellido_lower = c.apellido.lower()
-        # Scoring base
-        ratio = SequenceMatcher(None, q_lower, full).ratio()
-        # Boost si empieza con query
-        starts_boost = 0.15 if (nombre_lower.startswith(q_lower) or apellido_lower.startswith(q_lower)) else 0.0
-        # Boost si query está totalmente contenido en nombre/apellido
-        contains_boost = 0.05 if (q_lower in nombre_lower or q_lower in apellido_lower) else 0.0
-        score = ratio + starts_boost + contains_boost
-        scored.append((score, ratio, c))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    seleccion = scored[:limit]
-    return [
-        {
-            "id_cliente": c.id_cliente,
-            "nombre": c.nombre,
-            "apellido": c.apellido,
-            "similaridad": round(ratio, 4),
-        }
-        for score, ratio, c in seleccion
-    ]
-
+    try:
+        return clientes_service.sugerir_clientes(db, query, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 @router.get("/{cliente_id}", response_model=clienteSchema.ClienteOut)
 def obtener_cliente(cliente_id: int, db: Session = Depends(get_db)):

@@ -7,7 +7,6 @@ from decimal import Decimal
 from ..database import get_db
 
 from ..schemas import alquileres as alquilerSchema
-from ..models import Cliente, Vehiculo, Empleado, Alquiler, EstadoVehiculo, Mantenimiento
 from ..services import alquileres as alquiler_service
 from ..services.exceptions import DomainNotFound, BusinessRuleError
 
