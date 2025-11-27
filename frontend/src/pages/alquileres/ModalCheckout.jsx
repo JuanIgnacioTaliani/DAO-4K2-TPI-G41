@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { realizarCheckout, getAlquiler } from "../../api/alquileresApi";
+import { realizarCheckout } from "../../api/alquileresApi";
 import modalDialogService from "../../api/modalDialog.service";
 
 export default function ModalCheckout({

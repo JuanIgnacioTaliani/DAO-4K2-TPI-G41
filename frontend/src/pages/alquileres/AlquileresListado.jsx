@@ -1,14 +1,19 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function AlquileresListado({
   Items,
   Empleados,
+  multasCounts = {},
   Consultar,
   Modificar,
   Eliminar,
   handleAbrirCancelar,
   handleAbrirCheckout,
+  handleVerMultas,
 }) {
+  const navigate = useNavigate();
+
   const getBadgeEstado = (estado) => {
     const estados = {
       PENDIENTE: { texto: "Reserva", clase: "badge-warning" },
@@ -21,6 +26,11 @@ export default function AlquileresListado({
     const info = estados[estado] || { texto: estado, clase: "badge-secondary" };
     return <span className={`badge ${info.clase}`}>{info.texto}</span>;
   };
+
+  const goToMultasPage = (idAlquiler) => {
+    navigate(`/multas-danios?id_alquiler=${idAlquiler}`);
+  };
+
   return (
     <div className="table-responsive">
       <table className="table table-dark table-striped table-hover table-bordered table-sm mb-0">
@@ -56,15 +66,38 @@ export default function AlquileresListado({
               <td>{a.fecha_fin}</td>
               <td>$ {a.costo_base}</td>
               <td>$ {a.costo_total}</td>
-              <td>Boton Multas</td>
+              <td className="text-center">
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    multasCounts[a.id_alquiler] > 0
+                      ? "btn-warning"
+                      : "btn-outline-secondary"
+                  }`}
+                  onClick={() => handleVerMultas(a.id_alquiler)}
+                  title="Ver multas/daños"
+                >
+                  <i className="fa fa-exclamation-triangle mr-1"></i>
+                  {multasCounts[a.id_alquiler] || 0}
+                </button>
+              </td>
               <td>{getBadgeEstado(a.estado)}</td>
               <td>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-warning mr-1"
+                  onClick={() => goToMultasPage(a.id_alquiler)}
+                  title="Ir a Multas/Daños"
+                >
+                  <i className="fa fa-file-invoice-dollar"></i>
+                </button>{" "}
                 <button
                   className="btn btn-sm btn-outline-primary mr-1"
                   onClick={() => Modificar(a)}
                 >
                   <i className="fa fa-pencil-alt" />
-                </button>{" "}
+                </button>
+                {""}
                 <button
                   className="btn btn-sm btn-outline-danger"
                   onClick={() => Eliminar(a)}
@@ -83,7 +116,6 @@ export default function AlquileresListado({
                     </button>{" "}
                   </>
                 )}
-
                 {(a.estado === "PENDIENTE" || a.estado === "EN_CURSO") && (
                   <>
                     <button

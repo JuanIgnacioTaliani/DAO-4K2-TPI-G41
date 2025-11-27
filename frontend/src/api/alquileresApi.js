@@ -78,13 +78,13 @@ export const updateAlquiler = (id, alquiler) =>
 export const deleteAlquiler = (id) =>
   USE_MOCK ? mockApi.deleteAlquiler(id) : api.delete(`/alquileres/${id}`);
 
-// GET /alquileres/verificar-disponibilidad/{id_vehiculo}
+// GET /alquileres/verificar-disponibilidad/{id_vehiculo} borrar
 export const verificarDisponibilidad = (idVehiculo, fechaInicio, fechaFin) =>
   api.get(`/alquileres/verificar-disponibilidad/${idVehiculo}`, {
     params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin }
   });
 
-// GET /alquileres/vehiculo/{id_vehiculo}/ocupacion
+// GET /alquileres/vehiculo/{id_vehiculo}/ocupacion borrar
 export const getOcupacionVehiculo = (idVehiculo) =>
   api.get(`/alquileres/vehiculo/${idVehiculo}/ocupacion`);
 

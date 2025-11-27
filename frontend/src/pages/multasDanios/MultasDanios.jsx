@@ -1,5 +1,5 @@
 import React, { useState, useEffect, use } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 
 import MultasDaniosListado from "./MultasDaniosListado.jsx";
 import MultasDaniosBuscar from "./MultasDaniosBuscar.jsx";
@@ -19,21 +19,31 @@ import modalDialogService from "../../api/modalDialog.service";
 
 export default function MultasDanios() {
   const { setTitulo } = useOutletContext();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     setTitulo("Gestión de Multas y Daños");
-    Buscar();
-    (async() => {
-        try {
-            const alq = await getAlquileres();
-            setAlquileres(alq.data ?? []);
-        } catch (err) {
-            console.error("Error al cargar los alquileres", err);
-            setAlquileres([]);
-            modalDialogService.Alert("No se pudieron cargar los alquileres");
-        }
+
+    // If the page is opened with ?id_alquiler=..., use it to filter and preselect
+    const idAlq = searchParams.get("id_alquiler");
+    if (idAlq) {
+      setAlquiler(idAlq);
+      Buscar({ alquiler: idAlq });
+    } else {
+      Buscar();
+    }
+
+    (async () => {
+      try {
+        const alq = await getAlquileres();
+        setAlquileres(alq.data ?? []);
+      } catch (err) {
+        console.error("Error al cargar los alquileres", err);
+        setAlquileres([]);
+        modalDialogService.Alert("No se pudieron cargar los alquileres");
+      }
     })();
-  }, [setTitulo]);
+  }, [setTitulo, searchParams]);
 
   const TituloAccionABMC = {
     A: "(Agregar)",
@@ -122,7 +132,7 @@ export default function MultasDanios() {
     setAccionABMC("A");
     setItem({
       id_multa_danio: 0,
-      id_alquiler: 0,
+      id_alquiler: Number(Alquiler) || 0,
       tipo: "",
       descripcion: "",
       monto: 0,

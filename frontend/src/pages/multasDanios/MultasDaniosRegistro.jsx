@@ -11,8 +11,14 @@ export default function MultasDaniosRegistro({
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm({ values: Item });
+  } = useForm({ defaultValues: Item });
+
+  // Ensure form resets when Item changes (preselect alquiler on Agregar)
+  React.useEffect(() => {
+    reset(Item);
+  }, [Item, reset]);
   const onSubmit = (data) => Grabar(data);
 
   return (

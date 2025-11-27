@@ -89,7 +89,7 @@ def eliminar_alquiler(id_alquiler: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error interno al eliminar el alquiler")
 
-
+# se va  aeliminar
 @router.get("/verificar-disponibilidad/{id_vehiculo}")
 def verificar_disponibilidad(
     id_vehiculo: int,

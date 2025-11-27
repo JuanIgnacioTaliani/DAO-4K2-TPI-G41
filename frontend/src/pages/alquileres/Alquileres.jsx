@@ -4,9 +4,9 @@ import { useOutlet, useOutletContext } from "react-router-dom";
 import AlquileresListado from "./AlquileresListado";
 import AlquileresBuscar from "./AlquileresBuscar";
 import AlquileresRegistro from "./AlquileresRegistro";
-import AlquileresConsulta from "./AlquileresConsulta.jsx";
 import ModalCancelacion from "./ModalCancelacion";
 import ModalCheckout from "./ModalCheckout";
+import ModalMultas from "./ModalMultas";
 
 import {
   getAlquileres,
@@ -18,6 +18,7 @@ import {
 import { getClientes } from "../../api/clientesApi";
 import { getVehiculos } from "../../api/vehiculosApi";
 import { getEmpleados } from "../../api/empleadosApi";
+import { getMultasDaniosByAlquiler } from "../../api/multasDaniosApi";
 
 import modalDialogService from "../../api/modalDialog.service";
 
@@ -35,8 +36,7 @@ export default function Alquileres() {
         setVehiculos(veh.data ?? []);
         setEmpleados(emp.data ?? []);
         setClientes(cli.data ?? []);
-      }
-      catch (err) {
+      } catch (err) {
         setVehiculos([]);
         setEmpleados([]);
         setClientes([]);
@@ -94,6 +94,11 @@ export default function Alquileres() {
     observacionesFinalizacion: "",
   });
 
+  // Estados para modal de multas/daños
+  const [showMultasModal, setShowMultasModal] = useState(false);
+  const [multasModalData, setMultasModalData] = useState([]);
+  const [multasCounts, setMultasCounts] = useState({});
+
   async function Buscar(override) {
     let params = {};
 
@@ -136,8 +141,10 @@ export default function Alquileres() {
 
     if (estado !== undefined && estado !== "") params.estado = estado;
     if (cliente !== undefined && cliente !== "") params.id_cliente = cliente;
-    if (vehiculo !== undefined && vehiculo !== "") params.id_vehiculo = vehiculo;
-    if (empleado !== undefined && empleado !== "") params.id_empleado = empleado;
+    if (vehiculo !== undefined && vehiculo !== "")
+      params.id_vehiculo = vehiculo;
+    if (empleado !== undefined && empleado !== "")
+      params.id_empleado = empleado;
     if (fechaInicioDesde !== undefined && fechaInicioDesde !== "")
       params.fechaInicioDesde = fechaInicioDesde;
     if (fechaInicioHasta !== undefined && fechaInicioHasta !== "")
@@ -150,6 +157,24 @@ export default function Alquileres() {
     const res = await getAlquileres(params);
     const data = res.data;
     setItems(data);
+
+    // Cargar cantidad de multas por alquiler (para mostrar el badge en el listado)
+    try {
+      const counts = {};
+      await Promise.all(
+        (data || []).map(async (alquiler) => {
+          try {
+            const multasRes = await getMultasDaniosByAlquiler(alquiler.id_alquiler);
+            counts[alquiler.id_alquiler] = multasRes.data.length;
+          } catch (e) {
+            counts[alquiler.id_alquiler] = 0;
+          }
+        })
+      );
+      setMultasCounts(counts);
+    } catch (e) {
+      setMultasCounts({});
+    }
   }
 
   async function BuscarPorId(id, AccionABMC) {
@@ -274,6 +299,17 @@ export default function Alquileres() {
     }
   };
 
+  const handleVerMultas = async (idAlquiler) => {
+    try {
+      const multasRes = await getMultasDaniosByAlquiler(idAlquiler);
+      setMultasModalData(multasRes.data);
+      setShowMultasModal(true);
+    } catch (err) {
+      console.error(err);
+      modalDialogService.Alert("Error al cargar las multas/daños");
+    }
+  };
+
   return (
     <div>
       {AccionABMC === "L" && (
@@ -306,11 +342,13 @@ export default function Alquileres() {
             <AlquileresListado
               Items={Items}
               Empleados={Empleados}
+              multasCounts={multasCounts}
               Consultar={Consultar}
               Modificar={Modificar}
               Eliminar={Eliminar}
               handleAbrirCancelar={handleAbrirCancelar}
               handleAbrirCheckout={handleAbrirCheckout}
+              handleVerMultas={handleVerMultas}
             />
           ) : (
             <div className="alert alert-info mensajesAlert">
@@ -322,18 +360,16 @@ export default function Alquileres() {
       )}
 
       {(AccionABMC === "A" || AccionABMC === "M") && (
-          <AlquileresRegistro
-            AccionABMC={AccionABMC}
-            Item={Item}
-            Vehiculos={Vehiculos}
-            Empleados={Empleados}
-            Clientes={Clientes}
-            Grabar={Grabar}
-            Volver={Volver}
-          />
-        )}
-
-      {AccionABMC === "C" && <AlquileresConsulta Item={Item} Volver={Volver} />}
+        <AlquileresRegistro
+          AccionABMC={AccionABMC}
+          Item={Item}
+          Vehiculos={Vehiculos}
+          Empleados={Empleados}
+          Clientes={Clientes}
+          Grabar={Grabar}
+          Volver={Volver}
+        />
+      )}
 
       {/* Modal de Cancelación */}
       <ModalCancelacion
@@ -353,6 +389,13 @@ export default function Alquileres() {
         empleados={Empleados}
         onClose={() => setShowCheckoutModal(false)}
         onCheckoutExitoso={Buscar}
+      />
+
+      {/* Modal de Multas/Daños */}
+      <ModalMultas
+        show={showMultasModal}
+        multasModalData={multasModalData}
+        onClose={() => setShowMultasModal(false)}
       />
     </div>
   );
