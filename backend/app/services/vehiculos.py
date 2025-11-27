@@ -101,14 +101,12 @@ def eliminar_vehiculo(db: Session, vehiculo_id: int) -> None:
 
     alquileres_activos = db.query(Alquiler).filter(
         Alquiler.id_vehiculo == vehiculo_id,
-        Alquiler.fecha_devolucion == None
     ).count()
     if alquileres_activos > 0:
         raise BusinessRuleError("No se puede eliminar un vehículo con alquileres activos")
 
     mantenimientos_pendientes = db.query(Mantenimiento).filter(
         Mantenimiento.id_vehiculo == vehiculo_id,
-        Mantenimiento.completado == False
     ).count()
     if mantenimientos_pendientes > 0:
         raise BusinessRuleError("No se puede eliminar un vehículo con mantenimientos")

@@ -88,7 +88,7 @@ def eliminar_vehiculo(vehiculo_id: int, db: Session = Depends(get_db)):
     except BusinessRuleError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno al eliminar el vehículo")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/disponibilidad/all", response_model=List[VehiculoDisponibilidadOut])
