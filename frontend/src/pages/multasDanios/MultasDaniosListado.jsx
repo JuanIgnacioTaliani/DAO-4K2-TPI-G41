@@ -53,7 +53,7 @@ export default function MultasDaniosListado({
               <td className="text-center">
                 <button
                   className="btn btn-sm btn-outline-primary mr-1"
-                  onClick={() => Consultar(v)}
+                  onClick={() => Consultar(md)}
                 >
                   <i className="fa fa-eye" />
                 </button>{" "}
