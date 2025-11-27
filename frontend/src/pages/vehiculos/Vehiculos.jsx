@@ -249,7 +249,6 @@ export default function Vehiculos() {
           {Items?.length > 0 ? (
             <VehiculosListado
               Items={Items}
-              Buscar={Buscar}
               Consultar={Consultar}
               Modificar={Modificar}
               Eliminar={Eliminar}

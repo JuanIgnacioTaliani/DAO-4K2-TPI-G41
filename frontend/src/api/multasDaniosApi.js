@@ -117,3 +117,8 @@ export const updateMultaDanio = (id, multaDanio) =>
 // DELETE /multas-danios/{id}
 export const deleteMultaDanio = (id) =>
   USE_MOCK ? mockApi.deleteMultaDanio(id) : api.delete(`/multas-danios/${id}`);
+
+
+// GET /multas-danios/{id}
+export const getMultaDanioById = (id) =>
+  USE_MOCK ? mockApi.getMultaDanioById(id) : api.get(`/multas-danios/${id}`);

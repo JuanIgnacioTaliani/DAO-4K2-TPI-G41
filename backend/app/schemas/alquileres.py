@@ -2,6 +2,9 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
+from app.schemas.clientes import ClienteOut
+from app.schemas.vehiculos import VehiculoOut
+from app.schemas.empleados import EmpleadoOut
 
 
 class AlquilerBase(BaseModel):
@@ -52,11 +55,35 @@ class AlquilerUpdate(BaseModel):
     id_empleado_cancelador: Optional[int] = None
 
 
-class AlquilerOut(AlquilerBase):
+class AlquilerOut(BaseModel):
     id_alquiler: int
+    id_cliente: int
+    cliente: ClienteOut
+    id_vehiculo: int
+    vehiculo: VehiculoOut
+    id_empleado: int
+    empleado: EmpleadoOut
+
+    fecha_inicio: date
+    fecha_fin: date
+
+    costo_base: Decimal
+    costo_total: Optional[Decimal] = None
+
+    estado: str = "PENDIENTE"
+    observaciones: Optional[str] = None
+    
+    km_inicial: Optional[int] = None
+    km_final: Optional[int] = None
+    
+    motivo_cancelacion: Optional[str] = None
+    fecha_cancelacion: Optional[datetime] = None
+    id_empleado_cancelador: Optional[int] = None
+    empleado_cancelador: Optional[EmpleadoOut] = None
+
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CheckoutRequest(BaseModel):

@@ -1,4 +1,27 @@
 import { useState } from "react";
+import Select from "react-select";
+import { selectStyles } from "../../assets/selectStyles";
+
+const VehiculoSelect = ({ Vehiculos, Vehiculo, setVehiculo }) => {
+  const options = (Vehiculos || []).map((v) => ({
+    value: v.id_vehiculo,
+    label: `${v.marca} ${v.modelo} - ${v.patente}`,
+  }));
+
+  const selected = options.find((o) => o.value === Vehiculo) || null;
+
+  return (
+    <Select
+      options={options}
+      value={selected}
+      styles={selectStyles}
+      onChange={(opt) => setVehiculo(opt ? opt.value : "")}
+      isClearable
+      placeholder="Seleccione un vehículo"
+      classNamePrefix="react-select"
+    />
+  );
+};
 
 export default function MantenimientosBuscar({
     Vehiculos,
@@ -47,18 +70,11 @@ export default function MantenimientosBuscar({
                                         <label>Vehiculo:</label>
                                     </div>
                                     <div className="col-sm-8 col-md-10">
-                                        <select
-                                            className="form-control"
-                                            value={Vehiculo}
-                                            onChange={(e) => setVehiculo(e.target.value)}
-                                        >
-                                            <option value="">Todos los vehículos</option>
-                                            {Vehiculos.map((v) => (
-                                                <option key={v.id_vehiculo} value={v.id_vehiculo}>
-                                                    {v.marca} {v.modelo} ({v.patente})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <VehiculoSelect
+                                            Vehiculos={Vehiculos}
+                                            Vehiculo={Vehiculo}
+                                            setVehiculo={setVehiculo}
+                                        />
                                         <small className="form-text text-muted">
                                             Solo se puede crear mantenimiento si el vehículo no está en curso/checkout. Si el vehículo tiene reservas futuras, el mantenimiento debe finalizar antes del inicio del alquiler; de lo contrario, la reserva será cancelada automáticamente.
                                         </small>

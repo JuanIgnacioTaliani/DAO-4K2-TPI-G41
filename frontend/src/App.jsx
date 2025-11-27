@@ -11,8 +11,7 @@ import Empleados from "./pages/empleados/Empleados";
 import Vehiculos from "./pages/vehiculos/Vehiculos";
 import CategoriasVehiculo from "./pages/categoriasVehiculo/CategoriasVehiculo";
 import Alquileres from "./pages/alquileres/Alquileres";
-import AlquilerPage from "./pages/AlquilerPage";
-import MultasDaniosPage from "./pages/MultasDaniosPage";
+import MultasDanios from "./pages/multasDanios/MultasDanios";
 import Mantenimientos from "./pages/mantenimientos/Mantenimientos";
 import Reports from "./pages/Reports";
 
@@ -45,9 +44,8 @@ export default function App() {
             path="categorias-vehiculos"
             element={<CategoriasVehiculo />}
           />
-          <Route path="alquiler" element={<AlquilerPage />} />
-          <Route path="alquiler-new" element={<Alquileres />} />
-          <Route path="multas-danios" element={<MultasDaniosPage />} />
+          <Route path="alquiler" element={<Alquileres />} />
+          <Route path="multas-danios" element={<MultasDanios />} />
           <Route path="mantenimientos" element={<Mantenimientos />} />
           <Route path="reportes" element={<Reports />} />
 

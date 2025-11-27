@@ -95,3 +95,13 @@ def obtener_mantenimientos_vehiculo(id_vehiculo: int, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Error interno al obtener mantenimientos del vehículo")
+
+
+@router.post("/actualizar-vehiculos-disponibles", response_model=int)
+def actualizar_vehiculos_disponibles(db: Session = Depends(get_db)):
+    """Actualiza el estado de los vehículos a 'Disponible' si sus mantenimientos han finalizado."""
+    try:
+        cantidad = mantenimientos_service.actualizar_vehiculos_disponibles_por_mantenimientos(db)
+        return cantidad
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error interno al actualizar vehículos disponibles")

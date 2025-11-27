@@ -135,7 +135,7 @@ def update_mantenimiento(db: Session, id_mantenimiento: int, mantenimiento_in) -
         if (
             mantenimiento_in.fecha_inicio is not None
             and mantenimiento_in.fecha_fin is not None
-            and mantenimiento_in.fecha_inicio >= mantenimiento_in.fecha_fin
+            and mantenimiento_in.fecha_inicio > mantenimiento_in.fecha_fin
         ):
             raise BusinessRuleError("Rango de fechas inválido: fecha de inicio debe ser menor a fecha de fin")
 

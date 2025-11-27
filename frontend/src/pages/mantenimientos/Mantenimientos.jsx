@@ -32,7 +32,8 @@ export default function Mantenimientos() {
 
             } catch (e) {
                 console.error("Error cargando Categorias o Estados", e);
-                setPermisos([]);
+                setVehiculos([]);
+                setEmpleados([]);
                 modalDialogService.Alert("No se pudieron cargar Categorias o Estados.");
             }
         })();

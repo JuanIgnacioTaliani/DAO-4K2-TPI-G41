@@ -1,5 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.mantenimientos import actualizar_vehiculos_disponibles_por_mantenimientos
+from app.services.alquileres import actualizar_estados_alquileres
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,6 +74,15 @@ def job_actualizar_vehiculos():
         db.close()
 
 
+def job_actualizar_alquileres():
+    db = SessionLocal()
+    try:
+        cantidad = actualizar_estados_alquileres(db)
+        print(f"Alquileres actualizados según la fecha: {cantidad}")
+    finally:
+        db.close()
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_actualizar_vehiculos, 'cron', hour=0, minute=0)
+scheduler.add_job(job_actualizar_alquileres, 'cron', hour=0, minute=0)
 scheduler.start()
