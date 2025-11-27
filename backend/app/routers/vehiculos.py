@@ -99,4 +99,4 @@ def obtener_vehiculos_con_disponibilidad(db: Session = Depends(get_db)):
     try:
         return vehiculoService.obtener_vehiculos_con_disponibilidad(db)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Error interno al obtener la disponibilidad de vehículos")
