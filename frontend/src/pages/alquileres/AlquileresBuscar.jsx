@@ -1,5 +1,9 @@
 import { useState } from "react";
 
+import { ClienteSelect } from "../../components/Selects";
+import { VehiculoSelect } from "../../components/Selects";
+import { EmpleadosSelect } from "../../components/Selects";
+
 export default function AlquileresBuscar({
   Estado,
   setEstado,
@@ -77,18 +81,12 @@ export default function AlquileresBuscar({
                     <label>Cliente:</label>
                   </div>
                   <div className="col-sm-4 col-md-4">
-                    <select
-                      className="form-control"
-                      value={Cliente}
-                      onChange={(e) => setCliente(e.target.value)}
-                    >
-                      <option value="">Seleccione un cliente</option>
-                      {Clientes.map((c) => (
-                        <option key={c.id_cliente} value={c.id_cliente}>
-                          {c.nombre} {c.apellido}
-                        </option>
-                      ))}
-                    </select>
+                    {/** Searchable select using react-select */}
+                    <ClienteSelect
+                      Clientes={Clientes}
+                      Cliente={Cliente}
+                      setCliente={setCliente}
+                    />
                   </div>
                 </div>
                 <div className="row mt-2">
@@ -96,35 +94,23 @@ export default function AlquileresBuscar({
                     <label>Vehículo:</label>
                   </div>
                   <div className="col-sm-4 col-md-4">
-                    <select
-                      className="form-control"
-                      value={Vehiculo}
-                      onChange={(e) => setVehiculo(e.target.value)}
-                    >
-                      <option value="">Seleccione un vehículo</option>
-                      {Vehiculos.map((v) => (
-                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
-                          {v.patente} - {v.marca} {v.modelo}
-                        </option>
-                      ))}
-                    </select>
+                    {/** Searchable select using react-select */}
+                    <VehiculoSelect
+                      Vehiculos={Vehiculos}
+                      Vehiculo={Vehiculo}
+                      setVehiculo={setVehiculo}
+                    />
                   </div>
                   <div className="col-sm-2 col-md-2">
                     <label>Empleado:</label>
                   </div>
                   <div className="col-sm-4 col-md-4">
-                    <select
-                      className="form-control"
-                      value={Empleado}
-                      onChange={(e) => setEmpleado(e.target.value)}
-                    >
-                      <option value="">Seleccione un empleado</option>
-                      {Empleados.map((e) => (
-                        <option key={e.id_empleado} value={e.id_empleado}>
-                          {e.nombre} {e.apellido}
-                        </option>
-                      ))}
-                    </select>
+                    {/** Searchable select using react-select */}
+                    <EmpleadosSelect
+                      Empleados={Empleados}
+                      Empleado={Empleado}
+                      setEmpleado={setEmpleado}
+                    />
                   </div>
                 </div>
                 <div className="row mt-2">
