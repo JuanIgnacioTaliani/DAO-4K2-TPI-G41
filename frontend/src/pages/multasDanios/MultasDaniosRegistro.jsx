@@ -1,5 +1,7 @@
 import React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import { selectStyles } from "../../assets/selectStyles";
+import Select from "react-select";
 
 export default function MultasDaniosRegistro({
   AccionABMC,
@@ -10,6 +12,7 @@ export default function MultasDaniosRegistro({
 }) {
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -31,19 +34,35 @@ export default function MultasDaniosRegistro({
             </div>
 
             <div className="col-sm-8 col-md-7">
-              <select
-                className="form-control form-control-sm"
-                {...register("id_alquiler", { required: true })}
-              >
-                <option value="" defaultValue>
-                  -- Seleccione --
-                </option>
-                {Alquileres.map((a) => (
-                  <option key={a.id_alquiler} value={a.id_alquiler}>
-                    Alquiler #{a.id_alquiler} - {a.fecha_inicio}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name="id_alquiler"
+                control={control}
+                rules={{ required: true, validate: (a) => a !== "" }}
+                render={({ field }) => {
+                  const options = (Alquileres || []).map((a) => ({
+                    value: a.id_alquiler,
+                    label: `Alquiler #${a.id_alquiler} - ${a.fecha_inicio}`,
+                  }));
+                  const selected =
+                    options.find((o) => o.value === field.value) || null;
+                  return (
+                    <Select
+                      options={options}
+                      value={selected}
+                      styles={selectStyles}
+                      onChange={(opt) => {
+                        const val = opt ? opt.value : "";
+                        field.onChange(val);
+                        // reuse existing handler to load disponibilidad and clear dates
+                        handleVehiculoChange({ target: { value: val } });
+                      }}
+                      isClearable
+                      placeholder="-- seleccione --"
+                      classNamePrefix="react-select"
+                    />
+                  );
+                }}
+              />
             </div>
 
             <div className="col-sm-4 col-md-3 offset-md-1 mt-2">

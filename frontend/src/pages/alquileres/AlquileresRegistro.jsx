@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import Select from "react-select";
+import { selectStyles } from "../../assets/selectStyles";
 
 import { getDisponibilidad } from "../../api/vehiculosApi";
 import modalDialogService from "../../api/modalDialog.service";
@@ -15,6 +17,7 @@ export default function AlquileresRegistro({
 }) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     setValue,
@@ -168,28 +171,36 @@ export default function AlquileresRegistro({
                   </div>
                   <div className="col-md-6 mb-3">
                     <label>Vehículo:</label>
-                    <select
-                      {...register("id_vehiculo", {
-                        required: true,
-                        validate: (value) => value !== "",
-                      })}
-                      className="form-control"
-                      onChange={handleVehiculoChange}
-                    >
-                      <option value="" disabled defaultValue>
-                        -- seleccione --
-                      </option>
-
-                      {Vehiculos.map((v) => (
-                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
-                          {v.marca} {v.modelo} ({v.patente}) - {v.km_actual} km{" "}
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      name="id_vehiculo"
+                      control={control}
+                      rules={{ required: true, validate: (v) => v !== "" }}
+                      render={({ field }) => {
+                        const options = (Vehiculos || []).map((v) => ({
+                          value: v.id_vehiculo,
+                          label: `${v.marca} ${v.modelo} (${v.patente}) - ${v.km_actual} km`,
+                        }));
+                        const selected = options.find((o) => o.value === field.value) || null;
+                        return (
+                          <Select
+                            options={options}
+                            value={selected}
+                            styles={selectStyles}
+                            onChange={(opt) => {
+                              const val = opt ? opt.value : "";
+                              field.onChange(val);
+                              // reuse existing handler to load disponibilidad and clear dates
+                              handleVehiculoChange({ target: { value: val } });
+                            }}
+                            isClearable
+                            placeholder="-- seleccione --"
+                            classNamePrefix="react-select"
+                          />
+                        );
+                      }}
+                    />
                     {errors.id_vehiculo && (
-                      <div className="text-danger">
-                        El vehículo es obligatorio.
-                      </div>
+                      <div className="text-danger">El vehículo es obligatorio.</div>
                     )}
                   </div>
                 </div>
@@ -301,8 +312,8 @@ export default function AlquileresRegistro({
                             required: "La fecha de inicio es obligatoria",
                           })}
                           className="form-control"
-                          
-                          min={new Date().toISOString().split("T")[0]}
+                          // si AccionABMC === "M" no contemplar minima fecha de hoy
+                          min={AccionABMC === "M" ? undefined : new Date().toISOString().split("T")[0]}
                         />
                         {errors.fecha_inicio && (
                           <div className="text-danger">
@@ -375,50 +386,60 @@ export default function AlquileresRegistro({
                       </div>
                       <div className="col-md-6 mb-3">
                         <label>Empleado:</label>
-                        <select
-                          {...register("id_empleado", {
-                            required: true,
-                            validate: (value) => value !== "",
-                          })}
-                          className="form-control"
-                        >
-                          <option value="" disabled defaultValue>
-                            -- seleccione --
-                          </option>
-                          {Empleados.map((e) => (
-                            <option key={e.id_empleado} value={e.id_empleado}>
-                              {e.nombre} {e.apellido}
-                            </option>
-                          ))}
-                        </select>
+                        <Controller
+                          name="id_empleado"
+                          control={control}
+                          rules={{ required: true, validate: (v) => v !== "" }}
+                          render={({ field }) => {
+                            const options = (Empleados || []).map((e) => ({
+                              value: e.id_empleado,
+                              label: `${e.nombre} ${e.apellido}`,
+                            }));
+                            const selected = options.find((o) => o.value === field.value) || null;
+                            return (
+                              <Select
+                                options={options}
+                                value={selected}
+                                styles={selectStyles}
+                                onChange={(opt) => field.onChange(opt ? opt.value : "")}
+                                isClearable
+                                placeholder="-- seleccione --"
+                                classNamePrefix="react-select"
+                              />
+                            );
+                          }}
+                        />
                         {errors.id_empleado && (
-                          <div className="text-danger">
-                            Este campo es obligatorio
-                          </div>
+                          <div className="text-danger">Este campo es obligatorio</div>
                         )}
                       </div>
                       <div className="col-md-6 mb-3">
                         <label>Cliente:</label>
-                        <select
-                          {...register("id_cliente", {
-                            required: true,
-                            validate: (value) => value !== "",
-                          })}
-                          className="form-control"
-                        >
-                          <option value="" disabled defaultValue>
-                            -- seleccione --
-                          </option>
-                          {Clientes.map((c) => (
-                            <option key={c.id_cliente} value={c.id_cliente}>
-                              {c.nombre} {c.apellido}
-                            </option>
-                          ))}
-                        </select>
+                        <Controller
+                          name="id_cliente"
+                          control={control}
+                          rules={{ required: true, validate: (v) => v !== "" }}
+                          render={({ field }) => {
+                            const options = (Clientes || []).map((c) => ({
+                              value: c.id_cliente,
+                              label: `${c.nombre} ${c.apellido}`,
+                            }));
+                            const selected = options.find((o) => o.value === field.value) || null;
+                            return (
+                              <Select
+                                options={options}
+                                value={selected}
+                                styles={selectStyles}
+                                onChange={(opt) => field.onChange(opt ? opt.value : "")}
+                                isClearable
+                                placeholder="-- seleccione --"
+                                classNamePrefix="react-select"
+                              />
+                            );
+                          }}
+                        />
                         {errors.id_cliente && (
-                          <div className="text-danger">
-                            Este campo es obligatorio
-                          </div>
+                          <div className="text-danger">Este campo es obligatorio</div>
                         )}
                       </div>
                       <div className="col-md-12 mb-3">

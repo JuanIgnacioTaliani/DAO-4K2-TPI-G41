@@ -1,6 +1,35 @@
 import React, { useState } from "react";
 import { realizarCheckout } from "../../api/alquileresApi";
 import modalDialogService from "../../api/modalDialog.service";
+import Select from "react-select";
+import { selectStyles } from "../../assets/selectStyles";
+import { set } from "react-hook-form";
+
+const EmpleadosSelect = ({ Empleados, checkoutData, setCheckoutData }) => {
+  const options = (Empleados || []).map((e) => ({
+    value: e.id_empleado,
+    label: `${e.nombre} ${e.apellido} - ${e.legajo}`,
+  }));
+
+  const selected = options.find((o) => o.value === checkoutData.idEmpleadoFinalizador) || null;
+
+  return (
+    <Select
+      options={options}
+      value={selected}
+      onChange={(opt) =>
+        setCheckoutData({
+          ...checkoutData,
+          idEmpleadoFinalizador: opt ? opt.value : "",
+        })
+      }
+      styles={selectStyles}
+      isClearable
+      placeholder="Seleccione un empleado"
+      classNamePrefix="react-select"
+    />
+  );
+};
 
 export default function ModalCheckout({
   show,
@@ -216,25 +245,11 @@ export default function ModalCheckout({
               <label htmlFor="empleadoFinalizador">
                 <strong>Empleado Finalizador: *</strong>
               </label>
-              <select
-                className="form-control"
-                id="empleadoFinalizador"
-                value={checkoutData.idEmpleadoFinalizador}
-                onChange={(e) =>
-                  setCheckoutData({
-                    ...checkoutData,
-                    idEmpleadoFinalizador: e.target.value,
-                  })
-                }
-                disabled={loading}
-              >
-                <option value="">Seleccione un empleado</option>
-                {empleados.map((emp) => (
-                  <option key={emp.id_empleado} value={emp.id_empleado}>
-                    {emp.nombre} {emp.apellido} - {emp.legajo}
-                  </option>
-                ))}
-              </select>
+              <EmpleadosSelect
+                Empleados={empleados}
+                checkoutData={checkoutData}
+                setCheckoutData={setCheckoutData}
+              />
             </div>
 
             <div className="form-group">

@@ -78,10 +78,6 @@ export const updateAlquiler = (id, alquiler) =>
 export const deleteAlquiler = (id) =>
   USE_MOCK ? mockApi.deleteAlquiler(id) : api.delete(`/alquileres/${id}`);
 
-// GET /alquileres/vehiculo/{id_vehiculo}/ocupacion borrar
-export const getOcupacionVehiculo = (idVehiculo) =>
-  api.get(`/alquileres/vehiculo/${idVehiculo}/ocupacion`);
-
 // PUT /alquileres/{id}/checkout
 export const realizarCheckout = (id, checkoutData) =>
   api.put(`/alquileres/${id}/checkout`, checkoutData);

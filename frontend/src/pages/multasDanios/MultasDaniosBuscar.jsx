@@ -1,4 +1,27 @@
 import { useState } from "react";
+import Select from "react-select";
+import { selectStyles } from "../../assets/selectStyles";
+
+const AlquileresSelect = ({ Alquileres, Alquiler, setAlquiler }) => {
+  const options = (Alquileres || []).map((a) => ({
+    value: a.id_alquiler,
+    label: `Alquiler #${a.id_alquiler} - ${a.fecha_inicio}`,
+  }));
+
+  const selected = options.find((o) => o.value === Alquiler) || null;
+
+  return (
+    <Select
+      options={options}
+      value={selected}
+      styles={selectStyles}
+      onChange={(opt) => setAlquiler(opt ? opt.value : "")}
+      isClearable
+      placeholder="Seleccione un alquiler"
+      classNamePrefix="react-select"
+    />
+  );
+};
 
 export default function MultasDaniosBuscar({
   Alquileres,
@@ -53,18 +76,11 @@ export default function MultasDaniosBuscar({
                     <label>Alquiler:</label>
                   </div>
                   <div className="col-sm-8 col-md-4">
-                    <select
-                      className="form-control"
-                      value={Alquiler}
-                      onChange={(e) => setAlquiler(e.target.value)}
-                    >
-                      <option value="">Todas</option>
-                      {Alquileres.map((a) => (
-                        <option key={a.id_alquiler} value={a.id_alquiler}>
-                          Alquiler #{a.id_alquiler} - {a.fecha_inicio}
-                        </option>
-                      ))}
-                    </select>
+                    <AlquileresSelect
+                      Alquileres={Alquileres}
+                      Alquiler={Alquiler}
+                      setAlquiler={setAlquiler}
+                    />
                   </div>
 
                   <div className="col-sm-4 col-md-2">

@@ -1,6 +1,34 @@
 import React, { useState } from "react";
 import { cancelarAlquiler } from "../../api/alquileresApi";
 import modalDialogService from "../../api/modalDialog.service";
+import Select from "react-select";
+import { selectStyles } from "../../assets/selectStyles";
+
+const EmpleadosSelect = ({ Empleados, cancelarData, setCancelarData }) => {
+  const options = (Empleados || []).map((e) => ({
+    value: e.id_empleado,
+    label: `${e.nombre} ${e.apellido} - ${e.legajo}`,
+  }));
+
+  const selected = options.find((o) => o.value === cancelarData.idEmpleadoCancelador) || null;
+
+  return (
+    <Select
+      options={options}
+      value={selected}
+      onChange={(opt) =>
+        setCancelarData({
+          ...cancelarData,
+          idEmpleadoCancelador: opt ? opt.value : "",
+        })
+      }
+      styles={selectStyles}
+      isClearable
+      placeholder="Seleccione un empleado"
+      classNamePrefix="react-select"
+    />
+  );
+};
 
 export default function ModalCancelacion({
   show,
@@ -133,25 +161,11 @@ export default function ModalCancelacion({
                 <i className="fa fa-user-tie mr-1"></i>
                 Empleado que cancela <span className="text-danger">*</span>
               </label>
-              <select
-                className="form-control"
-                id="empleadoCancelador"
-                value={cancelarData.idEmpleadoCancelador}
-                onChange={(e) =>
-                  setCancelarData({
-                    ...cancelarData,
-                    idEmpleadoCancelador: e.target.value,
-                  })
-                }
-                disabled={loading}
-              >
-                <option value="">Seleccione un empleado</option>
-                {empleados.map((emp) => (
-                  <option key={emp.id_empleado} value={emp.id_empleado}>
-                    {emp.nombre} {emp.apellido} - {emp.legajo}
-                  </option>
-                ))}
-              </select>
+              <EmpleadosSelect
+                Empleados={empleados}
+                cancelarData={cancelarData}
+                setCancelarData={setCancelarData}
+              />
             </div>
           </div>
           <div className="modal-footer">
