@@ -1,5 +1,4 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.database import SessionLocal
 from app.services.mantenimientos import actualizar_vehiculos_disponibles_por_mantenimientos
 from app.services.alquileres import actualizar_estados_alquileres
 
@@ -8,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 import time
 
-from .database import Base, engine
+from .database import Base, Database
 from app import models
-from .routers import clientes, empleados, vehiculos, categorias_vehiculo, estados_vehiculo, alquileres, multas_danios, mantenimientos, seed
+from .routers import clientes, empleados, vehiculos, categorias_vehiculo, estados_vehiculo, alquileres, multas_danios, mantenimientos, seed, reports
 
 app = FastAPI(title="DAO - Sistema de Alquiler de Vehículos")
 
@@ -40,7 +39,7 @@ def on_startup():
     for intento in range(1, max_tries + 1):
         try:
             print(f"[startup] Intento {intento} de conectar a la DB y crear tablas...")
-            Base.metadata.create_all(bind=engine)
+            Base.metadata.create_all(bind=Database.engine)
             print("[startup] Tablas creadas / verificadas OK.")
             break
         except OperationalError as e:
@@ -60,13 +59,14 @@ app.include_router(alquileres.router)
 app.include_router(multas_danios.router)
 app.include_router(mantenimientos.router)
 app.include_router(seed.router)
+app.include_router(reports.router)
 
 @app.get("/")
 def root():
     return {"message": "API de Alquiler de Vehículos - OK"}
 
 def job_actualizar_vehiculos():
-    db = SessionLocal()
+    db = Database.SessionLocal()
     try:
         cantidad = actualizar_vehiculos_disponibles_por_mantenimientos(db)
         print(f"Vehículos actualizados a 'Disponible': {cantidad}")

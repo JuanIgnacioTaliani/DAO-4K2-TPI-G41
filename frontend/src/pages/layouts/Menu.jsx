@@ -13,30 +13,30 @@ function Menu() {
         </a>
 
         <ul className="nav nav-treeview">
-            <li className="nav-item">
-              <Link to="/clientes" className="nav-link">
-                <i className="far fa-circle nav-icon" />
-                <p>Clientes</p>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/empleados" className="nav-link">
-                <i className="far fa-circle nav-icon" />
-                <p>Empleados</p>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/vehiculos" className="nav-link">
-                <i className="far fa-circle nav-icon" />
-                <p>Vehiculos</p>
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/categorias-vehiculos" className="nav-link">
-                <i className="far fa-circle nav-icon" />
-                <p>Categorias Vehiculos</p>
-              </Link>
-            </li>
+          <li className="nav-item">
+            <Link to="/clientes" className="nav-link">
+              <i className="far fa-circle nav-icon" />
+              <p>Clientes</p>
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/empleados" className="nav-link">
+              <i className="far fa-circle nav-icon" />
+              <p>Empleados</p>
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/vehiculos" className="nav-link">
+              <i className="far fa-circle nav-icon" />
+              <p>Vehiculos</p>
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/categorias-vehiculos" className="nav-link">
+              <i className="far fa-circle nav-icon" />
+              <p>Categorias Vehiculos</p>
+            </Link>
+          </li>
         </ul>
       </li>
       <li className="nav-item has-treeview">
@@ -60,6 +60,14 @@ function Menu() {
           <i className="nav-icon fas fa-wrench" />
           <p>
             Mantenimientos
+          </p>
+        </Link>
+      </li>
+      <li className="nav-item has-treeview">
+        <Link to="/reportes" className="nav-link">
+          <i className="nav-icon fas fa-chart-bar" />
+          <p>
+            Reportes
           </p>
         </Link>
       </li>
