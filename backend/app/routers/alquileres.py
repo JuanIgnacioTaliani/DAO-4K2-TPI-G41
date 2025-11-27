@@ -8,97 +8,13 @@ from ..database import get_db
 
 from ..schemas import alquileres as alquilerSchema
 from ..models import Cliente, Vehiculo, Empleado, Alquiler, EstadoVehiculo, Mantenimiento
+from ..services import alquileres as alquiler_service
+from ..services.exceptions import DomainNotFound, BusinessRuleError
 
 router = APIRouter(
     prefix="/alquileres",
     tags=["Alquileres"],
 )
-
-
-def validar_referencias(
-    db: Session,
-    id_cliente: int,
-    id_vehiculo: int,
-    id_empleado: int,
-):
-    if not db.query(Cliente).filter(Cliente.id_cliente == id_cliente).first():
-        raise HTTPException(status_code=400, detail="Cliente no encontrado")
-
-    if not db.query(Vehiculo).filter(Vehiculo.id_vehiculo == id_vehiculo).first():
-        raise HTTPException(status_code=400, detail="Vehículo no encontrado")
-
-    if not db.query(Empleado).filter(Empleado.id_empleado == id_empleado).first():
-        raise HTTPException(status_code=400, detail="Empleado no encontrado")
-
-
-def validar_disponibilidad_vehiculo(
-    db: Session,
-    id_vehiculo: int,
-    fecha_inicio: date,
-    fecha_fin: date,
-    id_alquiler_actual: int | None = None,
-):
-    """
-    Valida que el vehículo esté disponible en el período solicitado.
-    Verifica conflictos con otros alquileres activos (PENDIENTE, EN_CURSO, CHECKOUT).
-    Verifica si el vehículo está en mantenimiento.
-    
-    Args:
-        db: Sesión de base de datos
-        id_vehiculo: ID del vehículo a verificar
-        fecha_inicio: Fecha de inicio del período
-        fecha_fin: Fecha de fin del período
-        id_alquiler_actual: ID del alquiler que se está editando (para excluirlo)
-    
-    Raises:
-        HTTPException: Si el vehículo no está disponible
-    """
-    
-    # Verificar si el vehículo estará en mantenimiento durante el período solicitado (solapamiento de rangos)
-    # Solapa si: mant.inicio <= nuevo_fin AND (mant.fin IS NULL OR mant.fin >= nuevo_inicio)
-    mantenimientos_conflictivos = db.query(Mantenimiento).filter(
-        Mantenimiento.id_vehiculo == id_vehiculo,
-        Mantenimiento.fecha_inicio <= fecha_fin,
-        ((Mantenimiento.fecha_fin.is_(None)) | (Mantenimiento.fecha_fin >= fecha_inicio))
-    ).all()
-
-    if mantenimientos_conflictivos:
-        detalles = []
-        for m in mantenimientos_conflictivos:
-            detalles.append(
-                f"{(m.tipo or 'Mantenimiento')} del {m.fecha_inicio} al {m.fecha_fin if m.fecha_fin else 'sin fin'}"
-            )
-        raise HTTPException(
-            status_code=400,
-            detail=f"El vehículo está en mantenimiento durante el período solicitado. {', '.join(detalles)}"
-        )
-    
-    # Verificar conflictos con otros ALQUILERES activos (PENDIENTE, EN_CURSO, CHECKOUT)
-    query_alquileres = db.query(Alquiler).filter(
-        Alquiler.id_vehiculo == id_vehiculo,
-        Alquiler.estado.in_(["PENDIENTE", "EN_CURSO", "CHECKOUT"]),  # Estados que bloquean el vehículo
-        # Condición de solapamiento de fechas:
-        # (nuevo_inicio <= existente_fin) AND (nuevo_fin >= existente_inicio)
-        Alquiler.fecha_inicio <= fecha_fin,
-        Alquiler.fecha_fin >= fecha_inicio
-    )
-    
-    # Si estamos editando un alquiler, excluirlo de la búsqueda
-    if id_alquiler_actual:
-        query_alquileres = query_alquileres.filter(
-            Alquiler.id_alquiler != id_alquiler_actual
-        )
-    
-    alquileres_conflictivos = query_alquileres.all()
-    
-    # Reportar conflictos si existen
-    if alquileres_conflictivos:
-        fechas = [f"{a.fecha_inicio} a {a.fecha_fin}" for a in alquileres_conflictivos]
-        raise HTTPException(
-            status_code=400,
-            detail=f"El vehículo no está disponible en el período solicitado. Conflicto con {len(alquileres_conflictivos)} alquiler(es): {', '.join(fechas)}"
-        )
-
 
 
 @router.get("/", response_model=List[alquilerSchema.AlquilerOut])
@@ -112,152 +28,66 @@ def listar_alquileres(
     fecha_inicio_hasta: date | None = None,
     fecha_fin_desde: date | None = None,
     fecha_fin_hasta: date | None = None,
-    periodo_estado: str | None = Query(default=None, description="pendiente|en_curso|checkout"),
 ):
-    q = db.query(Alquiler)
-
-    if estado:
-        q = q.filter(Alquiler.estado.in_(estado))
-    if id_cliente:
-        q = q.filter(Alquiler.id_cliente == id_cliente)
-    if id_vehiculo:
-        q = q.filter(Alquiler.id_vehiculo == id_vehiculo)
-    if id_empleado:
-        q = q.filter(Alquiler.id_empleado == id_empleado)
-
-    if fecha_inicio_desde:
-        q = q.filter(Alquiler.fecha_inicio >= fecha_inicio_desde)
-    if fecha_inicio_hasta:
-        q = q.filter(Alquiler.fecha_inicio <= fecha_inicio_hasta)
-    if fecha_fin_desde:
-        q = q.filter(Alquiler.fecha_fin >= fecha_fin_desde)
-    if fecha_fin_hasta:
-        q = q.filter(Alquiler.fecha_fin <= fecha_fin_hasta)
-
-    # Filtro de estado temporal por fechas (sin FINALIZADO/CANCELADO)
-    if periodo_estado:
-        hoy = date.today()
-        q = q.filter(~Alquiler.estado.in_(["FINALIZADO", "CANCELADO"]))
-        if periodo_estado == "pendiente":
-            q = q.filter(Alquiler.fecha_inicio > hoy)
-        elif periodo_estado == "en_curso":
-            q = q.filter(Alquiler.fecha_inicio <= hoy, Alquiler.fecha_fin >= hoy)
-        elif periodo_estado == "checkout":
-            q = q.filter(Alquiler.fecha_fin < hoy)
-
-    # Orden por defecto: fecha_inicio desc
-    q = q.order_by(Alquiler.fecha_inicio.desc())
-    return q.all()
+    return alquiler_service.listar_alquileres(
+        db,
+        estado,
+        id_cliente,
+        id_vehiculo,
+        id_empleado,
+        fecha_inicio_desde,
+        fecha_inicio_hasta,
+        fecha_fin_desde,
+        fecha_fin_hasta,
+    )
 
 
 @router.get("/{id_alquiler}", response_model=alquilerSchema.AlquilerOut)
 def obtener_alquiler(id_alquiler: int, db: Session = Depends(get_db)):
-    alquiler = (
-        db.query(Alquiler)
-        .filter(Alquiler.id_alquiler == id_alquiler)
-        .first()
-    )
-    if not alquiler:
-        raise HTTPException(status_code=404, detail="Alquiler no encontrado")
-    return alquiler
+    try:
+        return alquiler_service.get_alquiler(db, id_alquiler)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al obtener el alquiler")
 
 
 @router.post("/", response_model=alquilerSchema.AlquilerOut, status_code=status.HTTP_201_CREATED)
 def crear_alquiler(alquiler_in: alquilerSchema.AlquilerCreate, db: Session = Depends(get_db)):
-    # Validar FKs
-    validar_referencias(
-        db,
-        alquiler_in.id_cliente,
-        alquiler_in.id_vehiculo,
-        alquiler_in.id_empleado,
-    )
-    
-    # Validar disponibilidad del vehículo
-    validar_disponibilidad_vehiculo(
-        db,
-        alquiler_in.id_vehiculo,
-        alquiler_in.fecha_inicio,
-        alquiler_in.fecha_fin,
-    )
-
-    data = alquiler_in.dict()
-
-    # Si no vino costo_total, lo igualamos a costo_base
-    if data.get("costo_total") is None:
-        data["costo_total"] = data["costo_base"]
-    
-    # Capturar el kilometraje inicial del vehículo
-    if data.get("km_inicial") is None:
-        vehiculo = db.query(Vehiculo).filter(Vehiculo.id_vehiculo == alquiler_in.id_vehiculo).first()
-        if vehiculo:
-            data["km_inicial"] = vehiculo.km_actual
-
-    nuevo = Alquiler(**data)
-    db.add(nuevo)
-    db.commit()
-    db.refresh(nuevo)
-    return nuevo
+    try:
+        return alquiler_service.create_alquiler(db, alquiler_in)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{id_alquiler}", response_model=alquilerSchema.AlquilerOut)
-def actualizar_alquiler(
-    id_alquiler: int,
-    alquiler_in: alquilerSchema.AlquilerUpdate,
-    db: Session = Depends(get_db),
-):
-    alquiler = (
-        db.query(Alquiler)
-        .filter(Alquiler.id_alquiler == id_alquiler)
-        .first()
-    )
-    if not alquiler:
-        raise HTTPException(status_code=404, detail="Alquiler no encontrado")
-
-    data = alquiler_in.dict(exclude_unset=True)
-
-    # Resolver valores finales para validar FKs (si alguno no vino, usamos el actual)
-    id_cliente = data.get("id_cliente", alquiler.id_cliente)
-    id_vehiculo = data.get("id_vehiculo", alquiler.id_vehiculo)
-    id_empleado = data.get("id_empleado", alquiler.id_empleado)
-    fecha_inicio = data.get("fecha_inicio", alquiler.fecha_inicio)
-    fecha_fin = data.get("fecha_fin", alquiler.fecha_fin)
-
-    validar_referencias(db, id_cliente, id_vehiculo, id_empleado)
-    
-    # Validar disponibilidad si cambian fechas o vehículo
-    if "fecha_inicio" in data or "fecha_fin" in data or "id_vehiculo" in data:
-        validar_disponibilidad_vehiculo(
-            db,
-            id_vehiculo,
-            fecha_inicio,
-            fecha_fin,
-            id_alquiler_actual=id_alquiler,
-        )
-
-    for field, value in data.items():
-        setattr(alquiler, field, value)
-
-    if alquiler.costo_total is None:
-        alquiler.costo_total = alquiler.costo_base
-
-    db.commit()
-    db.refresh(alquiler)
-    return alquiler
+def actualizar_alquiler(id_alquiler: int,alquiler_in: alquilerSchema.AlquilerUpdate,db: Session = Depends(get_db),):
+    try:
+        return alquiler_service.update_alquiler(db, id_alquiler, alquiler_in)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al actualizar el alquiler")
 
 
 @router.delete("/{id_alquiler}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_alquiler(id_alquiler: int, db: Session = Depends(get_db)):
-    alquiler = (
-        db.query(Alquiler)
-        .filter(Alquiler.id_alquiler == id_alquiler)
-        .first()
-    )
-    if not alquiler:
-        raise HTTPException(status_code=404, detail="Alquiler no encontrado")
-
-    db.delete(alquiler)
-    db.commit()
-    return None
+    try:
+        alquiler_service.eliminar_alquiler(db, id_alquiler)
+    except DomainNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno al eliminar el alquiler")
 
 
 @router.get("/verificar-disponibilidad/{id_vehiculo}")
@@ -596,3 +426,18 @@ def cancelar_alquiler(
         fecha_cancelacion=alquiler.fecha_cancelacion.isoformat()
     )
 
+
+@router.post("actualizar-estado-alquileres", response_model=int)
+def actualizar_estado_alquileres(db: Session = Depends(get_db)):
+    """
+    Actualiza el estado de los alquileres basándose en la fecha actual.
+    - De PENDIENTE a EN_CURSO si la fecha de inicio es hoy o anterior.
+    - De EN_CURSO a CHECKOUT si la fecha de fin es anterior a hoy.
+    
+    Retorna la cantidad de alquileres actualizados.
+    """
+    try:
+        cantidad_actualizados = alquiler_service.actualizar_estados_alquileres(db)
+        return cantidad_actualizados
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

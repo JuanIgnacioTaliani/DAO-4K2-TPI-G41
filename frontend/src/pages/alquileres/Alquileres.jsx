@@ -5,6 +5,8 @@ import AlquileresListado from "./AlquileresListado";
 import AlquileresBuscar from "./AlquileresBuscar";
 import AlquileresRegistro from "./AlquileresRegistro";
 import AlquileresConsulta from "./AlquileresConsulta.jsx";
+import ModalCancelacion from "./ModalCancelacion";
+import ModalCheckout from "./ModalCheckout";
 
 import {
   getAlquileres,
@@ -72,6 +74,25 @@ export default function Alquileres() {
 
   const [Items, setItems] = useState(null);
   const [Item, setItem] = useState(null);
+
+  // Estados para modal de cancelación
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [cancelarData, setCancelarData] = useState({
+    alquilerId: null,
+    motivoCancelacion: "",
+    idEmpleadoCancelador: "",
+  });
+  const [loadingCancelar, setLoadingCancelar] = useState(false);
+
+  // Estados para modal de checkout
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    alquilerId: null,
+    kmInicial: null,
+    kmFinal: "",
+    idEmpleadoFinalizador: "",
+    observacionesFinalizacion: "",
+  });
 
   async function Buscar(override) {
     let params = {};
@@ -156,10 +177,6 @@ export default function Alquileres() {
       estado: "",
       observaciones: "",
       km_inicial: 0,
-      km_final: 0,
-      motivo_cancelacion: "",
-      fecha_cancelacion: "",
-      id_empleado_cancelador: 0,
     });
   };
 
@@ -210,6 +227,53 @@ export default function Alquileres() {
 
   const Volver = () => setAccionABMC("L");
 
+  // Función para abrir el modal de cancelación
+  const handleAbrirCancelar = (alquiler) => {
+    setCancelarData({
+      alquilerId: alquiler.id_alquiler,
+      motivoCancelacion: "",
+      idEmpleadoCancelador: "",
+    });
+    setShowCancelarModal(true);
+  };
+
+  // Función para abrir el modal de checkout
+  const handleAbrirCheckout = async (alquiler) => {
+    // Abrir modal primero con datos mínimos para buena UX
+    setShowCheckoutModal(true);
+
+    // Intentar obtener el alquiler actualizado para tener km_inicial más fresco
+    try {
+      const { data } = await getAlquiler(alquiler.id_alquiler);
+      setCheckoutData({
+        alquilerId: data.id_alquiler,
+        kmInicial: data.km_inicial ?? alquiler.km_inicial ?? 0,
+        kmFinal: "",
+        idEmpleadoFinalizador: "",
+        observacionesFinalizacion: "",
+        vehiculoInfo: `${data.vehiculo?.marca ?? ""} ${
+          data.vehiculo?.modelo ?? ""
+        } (${data.vehiculo?.patente ?? ""})`.trim(),
+        fechaInicio: data.fecha_inicio,
+        fechaFin: data.fecha_fin,
+      });
+    } catch (e) {
+      // Si falla el refetch, usar los datos disponibles
+      setCheckoutData({
+        alquilerId: alquiler.id_alquiler,
+        kmInicial: alquiler.km_inicial ?? 0,
+        kmFinal: "",
+        idEmpleadoFinalizador: "",
+        observacionesFinalizacion: "",
+        vehiculoInfo: `${alquiler.vehiculo?.marca ?? ""} ${
+          alquiler.vehiculo?.modelo ?? ""
+        } (${alquiler.vehiculo?.patente ?? ""})`.trim(),
+        fechaInicio: alquiler.fecha_inicio,
+        fechaFin: alquiler.fecha_fin,
+      });
+    }
+  };
+
   return (
     <div>
       {AccionABMC === "L" && (
@@ -241,10 +305,12 @@ export default function Alquileres() {
           {Items?.length > 0 ? (
             <AlquileresListado
               Items={Items}
-              Buscar={Buscar}
+              Empleados={Empleados}
               Consultar={Consultar}
               Modificar={Modificar}
               Eliminar={Eliminar}
+              handleAbrirCancelar={handleAbrirCancelar}
+              handleAbrirCheckout={handleAbrirCheckout}
             />
           ) : (
             <div className="alert alert-info mensajesAlert">
@@ -255,7 +321,7 @@ export default function Alquileres() {
         </>
       )}
 
-      {AccionABMC === "A" && (
+      {(AccionABMC === "A" || AccionABMC === "M") && (
           <AlquileresRegistro
             AccionABMC={AccionABMC}
             Item={Item}
@@ -268,6 +334,26 @@ export default function Alquileres() {
         )}
 
       {AccionABMC === "C" && <AlquileresConsulta Item={Item} Volver={Volver} />}
+
+      {/* Modal de Cancelación */}
+      <ModalCancelacion
+        show={showCancelarModal}
+        cancelarData={cancelarData}
+        setCancelarData={setCancelarData}
+        empleados={Empleados}
+        onClose={() => setShowCancelarModal(false)}
+        onCancelarExitoso={Buscar}
+      />
+
+      {/* Modal de Checkout */}
+      <ModalCheckout
+        show={showCheckoutModal}
+        checkoutData={checkoutData}
+        setCheckoutData={setCheckoutData}
+        empleados={Empleados}
+        onClose={() => setShowCheckoutModal(false)}
+        onCheckoutExitoso={Buscar}
+      />
     </div>
   );
 }

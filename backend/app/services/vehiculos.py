@@ -172,8 +172,20 @@ def obtener_disponibilidad(db: Session, vehiculo_id: int) -> VehiculoDisponibili
     vehiculo = obtener_vehiculo(db, vehiculo_id)
     hoy = date.today()
 
-    alquileres = db.query(Alquiler).filter(Alquiler.id_vehiculo == vehiculo_id).all()
-    mantenimientos = db.query(Mantenimiento).filter(Mantenimiento.id_vehiculo == vehiculo_id).all()
+    # Filtrar alquileres activos o futuros (no finalizados ni cancelados)
+    alquileres = db.query(Alquiler).filter(
+        Alquiler.id_vehiculo == vehiculo_id,
+        Alquiler.estado.in_(["PENDIENTE", "EN_CURSO", "CHECKOUT"])
+    ).all()
+    
+    # Filtrar mantenimientos activos o futuros (sin fecha_fin o fecha_fin >= hoy)
+    mantenimientos = db.query(Mantenimiento).filter(
+        Mantenimiento.id_vehiculo == vehiculo_id,
+        or_(
+            Mantenimiento.fecha_fin.is_(None),
+            Mantenimiento.fecha_fin >= hoy
+        )
+    ).all()
 
     return VehiculoDisponibilidadDetalleOut(
         vehiculo=vehiculo,
