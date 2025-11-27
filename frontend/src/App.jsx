@@ -14,6 +14,7 @@ import Alquileres from "./pages/alquileres/Alquileres";
 import AlquilerPage from "./pages/AlquilerPage";
 import MultasDaniosPage from "./pages/MultasDaniosPage";
 import Mantenimientos from "./pages/mantenimientos/Mantenimientos";
+import Reports from "./pages/Reports";
 
 function AppLayout() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="alquiler-new" element={<Alquileres />} />
           <Route path="multas-danios" element={<MultasDaniosPage />} />
           <Route path="mantenimientos" element={<Mantenimientos />} />
+          <Route path="reportes" element={<Reports />} />
 
           {/* fallback por si ponen cualquier cosa */}
           <Route path="*" element={<Navigate to="/clientes" replace />} />
